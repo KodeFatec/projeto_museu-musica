@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.screen {
+  display: block;
+}
+
+/* Desktop: o menu fica no topo; a área abaixo rola (Início) ou preenche a janela sem moldura (Tocando) */
+@media (min-width: 1024px) {
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .screen {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}

@@ -1,0 +1,27 @@
+<header class="bar">
+  <button type="button" class="back" aria-label="Voltar à coleção" (click)="back.emit()">
+    <svg class="back__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+    <svg class="back__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+    <span class="back__text">Coleção</span>
+  </button>
+
+  <div class="room">
+    <span class="live"></span>
+    <span class="room__text">{{ subtitle() }}</span>
+  </div>
+
+  <div class="plaque">
+    <h1>Memorial Som &amp; Alma</h1>
+    <span class="plaque__room">{{ subtitle() }}</span>
+  </div>
+
+  <div class="tech">
+    @if (audioFormat(); as format) {
+      <div class="tech__text">
+        <span>Arquivo de áudio</span>
+        <strong>{{ format }}</strong>
+      </div>
+      <span class="chip">{{ format }}</span>
+    }
+  </div>
+</header>

@@ -1,0 +1,12 @@
+<footer class="bar">
+  <app-progress-bar />
+  <div class="row">
+    <div class="output">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" /></svg>
+      <span class="output__name">{{ track().title }}</span>
+      <span class="chip">{{ artists() }}</span>
+    </div>
+    <app-playback-controls class="controls" />
+    <app-track-actions class="actions" />
+  </div>
+</footer>

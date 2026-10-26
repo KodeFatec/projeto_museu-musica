@@ -1,0 +1,28 @@
+<div class="head">
+  <h3>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    Participações
+  </h3>
+  <span class="count">{{ artists().length }} {{ artists().length === 1 ? 'Artista' : 'Artistas' }}</span>
+</div>
+<p class="blurb">Artistas e instrumentos registrados nesta gravação:</p>
+
+<ul class="list">
+  @for (artist of artists(); track artist.id) {
+    <li class="item">
+      @if (artist.photoUrl) {
+        <img class="avatar" [src]="artist.photoUrl" [alt]="artist.name" />
+      } @else {
+        <span class="avatar avatar--initials" aria-hidden="true">{{ initials(artist.name) }}</span>
+      }
+      <span class="who">
+        <strong>{{ artist.name }}</strong>
+        @if (artist.role) {
+          <small>{{ artist.role }}</small>
+        }
+      </span>
+    </li>
+  }
+</ul>

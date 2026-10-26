@@ -1,0 +1,27 @@
+@if (track(); as t) {
+  <div class="info">
+    @if (t.genre) {
+      <span class="eyebrow">{{ t.genre }}@if (t.year) { • {{ t.year }}}</span>
+    }
+    <h2 class="title">{{ t.title }}</h2>
+    <p class="artist">{{ artists() }}@if (t.year) { <span class="session">({{ t.year }})</span> }</p>
+
+    <dl class="meta">
+      <div>
+        <dt>Código ISRC</dt>
+        <dd>{{ t.isrc ?? 'Não informado' }}</dd>
+      </div>
+      <div>
+        <dt>Gênero &amp; Duração</dt>
+        <dd>{{ genreAndDuration() }}</dd>
+      </div>
+    </dl>
+
+    <p class="pill">
+      @for (part of pillParts(); track part; let last = $last) {
+        <span>{{ part }}</span>
+        @if (!last) { <i class="dot"></i> }
+      }
+    </p>
+  </div>
+}

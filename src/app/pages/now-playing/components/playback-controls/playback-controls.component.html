@@ -1,0 +1,33 @@
+<div class="controls">
+  <button type="button" class="side side--mobile" [class.on]="player.shuffle()" aria-label="Aleatório" [attr.aria-pressed]="player.shuffle()" (click)="player.shuffle.set(!player.shuffle())">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" /></svg>
+  </button>
+
+  <button type="button" class="skip" aria-label="Voltar 10 segundos" title="Voltar 10s" (click)="player.skip(-10)">
+    <svg class="ic-desktop" viewBox="0 0 24 24" fill="currentColor"><path d="M11 16.07V7.93c0-.81-.91-1.28-1.54-.77l-4.99 4.07c-.49.4-.49 1.14 0 1.54l4.99 4.07c.63.51 1.54.04 1.54-.77zm8 0V7.93c0-.81-.91-1.28-1.54-.77l-4.99 4.07c-.49.4-.49 1.14 0 1.54l4.99 4.07c.63.51 1.54.04 1.54-.77z" /></svg>
+    <svg class="ic-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4.5a8 8 0 1 1-7.4 5" /><path d="M12 1.5 8.5 4.5 12 7.5" />
+      <text x="12" y="16" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none">10</text>
+    </svg>
+  </button>
+
+  <button type="button" class="play" [attr.aria-label]="player.playing() ? 'Pausar' : 'Tocar'" (click)="player.toggle()">
+    @if (player.playing()) {
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+    } @else {
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+    }
+  </button>
+
+  <button type="button" class="skip" aria-label="Avançar 10 segundos" title="Avançar 10s" (click)="player.skip(10)">
+    <svg class="ic-desktop" viewBox="0 0 24 24" fill="currentColor"><path d="M5.54 7.16c-.63-.51-1.54-.04-1.54.77v8.14c0 .81.91 1.28 1.54.77l4.99-4.07c.49-.4.49-1.14 0-1.54l-4.99-4.07zm8 0c-.63-.51-1.54-.04-1.54.77v8.14c0 .81.91 1.28 1.54.77l4.99-4.07c.49-.4.49-1.14 0-1.54l-4.99-4.07z" /></svg>
+    <svg class="ic-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <g transform="translate(24 0) scale(-1 1)"><path d="M12 4.5a8 8 0 1 1-7.4 5" /><path d="M12 1.5 8.5 4.5 12 7.5" /></g>
+      <text x="12" y="16" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none">10</text>
+    </svg>
+  </button>
+
+  <button type="button" class="side side--mobile" [class.on]="player.repeat()" aria-label="Repetir" [attr.aria-pressed]="player.repeat()" (click)="player.repeat.set(!player.repeat())">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z" /></svg>
+  </button>
+</div>

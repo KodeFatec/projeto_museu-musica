@@ -1,0 +1,24 @@
+@if (spec(); as c) {
+  <div class="shell" [style.--shell]="c.shell">
+    <div class="body">
+      <i class="screw tl"></i><i class="screw tr"></i><i class="screw bl"></i><i class="screw br"></i>
+
+      <div class="sticker">
+        <span class="heading">{{ c.heading }}</span>
+        <span class="side">{{ c.side }}</span>
+      </div>
+
+      <div class="window">
+        <span class="reel"><i class="hub" [class.paused]="!spinning()"></i></span>
+        <span class="counter">{{ c.counter }}</span>
+        <span class="reel"><i class="hub" [class.paused]="!spinning()"></i></span>
+      </div>
+
+      <div class="specs">
+        <span>{{ c.specs[0] }}</span>
+        <span class="gold">{{ c.specs[1] }}</span>
+        <span>{{ c.specs[2] }}</span>
+      </div>
+    </div>
+  </div>
+}

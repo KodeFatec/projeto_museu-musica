@@ -1,0 +1,33 @@
+<div class="head">
+  <div class="head__title">
+    <span class="script">Letra</span>
+    <span class="sub">Poesia &amp; Canto</span>
+  </div>
+  <span class="sync"><i></i>Sincronia Lírica</span>
+</div>
+
+@if (verses().length) {
+  <div class="verses" #list>
+    @for (verse of verses(); track verse.id; let i = $index) {
+      <div class="verse" [class.is-past]="i < currentIndex()" [class.is-current]="i === currentIndex()"
+           [class.is-near]="isNear(i)" [class.is-note]="verse.instrumental" [style.--o]="opacity(i)">
+        @if (i === currentIndex()) {
+          <span class="tag tag--long">{{ time(verse.start) }} • Em Reprodução</span>
+          <span class="tag tag--short"><i></i>Sincronia {{ time(verse.start) }}</span>
+        }
+        <p class="verse__text">
+          @for (line of verse.lines; track $index; let last = $last) {
+            {{ line }}@if (!last) { <br /> }
+          }
+        </p>
+      </div>
+    }
+  </div>
+} @else {
+  <p class="empty">Esta música ainda não tem letra cadastrada.</p>
+}
+
+<div class="foot">
+  <span>@if (composers()) { Compositor: {{ composers() }} }</span>
+  <span class="foot__note">{{ note() }}</span>
+</div>

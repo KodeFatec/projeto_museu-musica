@@ -1,0 +1,13 @@
+<div class="media" [class.media--tape]="format() === 'cassette'" role="button" tabindex="0"
+     [attr.aria-label]="playing() ? 'Pausar' : 'Tocar'"
+     (click)="toggle.emit()" (keydown.enter)="toggle.emit()" (keydown.space)="$event.preventDefault(); toggle.emit()">
+  <div class="glow"></div>
+
+  @if (format() === 'vinyl') {
+    <app-vinyl-disc class="piece" [label]="label()" [spinning]="playing()" />
+    <span class="badge">Vinil • {{ track().year ?? 's/d' }}</span>
+  } @else {
+    <app-cassette-tape class="piece" [spec]="spec()" [spinning]="playing()" />
+    <span class="badge">Fita K7 • {{ track().year }}</span>
+  }
+</div>

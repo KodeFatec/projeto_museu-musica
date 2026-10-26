@@ -1,0 +1,7 @@
+<div class="progress">
+  <span class="time time--now">{{ time(player.elapsed()) }}</span>
+  <input class="range" type="range" min="0" step="1" aria-label="Progresso da faixa"
+         [max]="player.duration()" [value]="player.elapsed()" [style.--pct]="player.progress() * 100 + '%'"
+         (input)="onSeek($event)" />
+  <span class="time time--total">{{ time(player.duration()) }}</span>
+</div>

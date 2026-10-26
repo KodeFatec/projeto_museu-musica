@@ -1,0 +1,5 @@
+<app-menu [userName]="user.name()" [userRole]="user.role()" (searchChange)="onSearch($event)" />
+<main class="screen"><router-outlet /></main>
+@if (showMiniPlayer()) {
+  <app-mini-player />
+}

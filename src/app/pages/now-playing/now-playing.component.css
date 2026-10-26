@@ -1,0 +1,51 @@
+:host { display: block; }
+
+/* ---------- mobile ---------- */
+.console { padding-bottom: 8.5rem; }
+
+.col--identity { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0.5rem 1.25rem 0; }
+.col--identity app-track-media { margin-top: 0.75rem; }
+.col--identity app-view-tabs { margin-top: 1.5rem; }
+.col--lyrics, .col--artifacts { padding: 1rem 1.25rem 0; }
+.block { display: block; margin-bottom: 1.5rem; }
+.empty { margin: 1rem 0; font: italic 400 1.1rem/1.5 var(--font-serif); color: var(--muted); text-align: center; }
+
+/* no mobile só o painel da aba ativa aparece */
+.panel { display: none; }
+.panel.is-active { display: block; }
+.col--identity .panel--qr { margin-top: 1.25rem; }
+
+/* ---------- desktop: console de 3 colunas, ocupando a tela toda (sem moldura) ---------- */
+@media (min-width: 1024px) {
+  :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  .console {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+    background-color: var(--parchment);
+    background-image: radial-gradient(#f3ece0 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  .stage { flex: 1; min-height: 0; display: grid; grid-template-columns: 4fr 5fr 3fr; background: rgba(253, 251, 247, 0.6); }
+
+  .col { min-height: 0; overflow-y: auto; }
+  .col + .col { border-left: 1px solid rgba(197, 160, 89, 0.25); }
+
+  .panel, .panel.is-active { display: block; }
+
+  .col--identity { justify-content: space-between; padding: 1.5rem; }
+  .col--identity app-track-media { margin-top: 0.5rem; }
+  .col--identity .panel--qr { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(197, 160, 89, 0.2); }
+
+  .col--lyrics { display: flex; flex-direction: column; overflow: hidden; padding: 1.75rem; background: linear-gradient(to bottom, rgba(251, 249, 245, 0.4), rgba(253, 251, 247, 0.6), rgba(244, 239, 230, 0.3)); }
+  .col--artifacts { padding: 1.5rem; }
+  .block + .block { padding-top: 1.25rem; border-top: 1px solid rgba(197, 160, 89, 0.25); }
+  .block { margin-bottom: 1.25rem; }
+}
+
+.state { margin: 3rem 1.5rem; text-align: center; font: italic 400 1.15rem var(--font-serif); color: var(--muted); }
+.state a { color: var(--gold-700); }

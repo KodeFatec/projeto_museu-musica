@@ -1,0 +1,50 @@
+/* Registrado aqui para o notch do menu mobile poder animar a posição (--notch-x). */
+@property --notch-x {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 70%;
+}
+
+:root {
+  --bg: #f8f5ee;
+  --creme-50: #fdfbf7;
+  --creme-200: #f4efe6;
+  --parchment: #faf7f0;
+  --parchment-100: #fbf9f5;
+  --gold-300: #e5c07b;
+  --gold-500: #c59a45;
+  --gold-600: #a97e2c;
+  --gold-700: #8a631e;
+  --olive-900: #1c241d;
+  --muted: #786e61;
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Cinzel', serif;
+  --font-sans: 'Montserrat', sans-serif;
+  --font-type: 'Courier Prime', Courier, monospace;
+  --font-script: 'Alex Brush', cursive;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg) radial-gradient(circle at 50% 0%, rgba(229, 192, 123, 0.08) 0%, transparent 70%) no-repeat;
+  color: #26211c;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--gold-500); color: #fff; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: rgba(197, 160, 89, 0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--gold-500); border-radius: 4px; }
+
+button, input { font: inherit; }
+:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

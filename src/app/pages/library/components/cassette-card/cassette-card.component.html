@@ -1,0 +1,10 @@
+<article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
+  <app-cassette-tape class="tape" [spec]="spec()" />
+  <h3 class="title">{{ track().title }}</h3>
+  <div class="meta">
+    <span>{{ artists() }}@if (track().year) { • <em>{{ track().year }}</em>}</span>
+    @if (track().genre) {
+      <span class="badge">{{ track().genre }}</span>
+    }
+  </div>
+</article>

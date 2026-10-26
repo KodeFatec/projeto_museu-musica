@@ -1,0 +1,17 @@
+<div class="qr">
+  <div class="qr__code">
+    <svg [attr.viewBox]="'-1 -1 ' + (qr().size + 2) + ' ' + (qr().size + 2)" shape-rendering="crispEdges" role="img" aria-label="QR Code da obra">
+      <path [attr.d]="qr().path" fill="currentColor" />
+    </svg>
+  </div>
+  <div class="qr__text">
+    <h4>QR da Obra para Museu</h4>
+    <p>Escaneie para abrir esta música no seu dispositivo.</p>
+    <button type="button" (click)="copyLink()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      {{ copied() ? 'Link copiado!' : 'Copiar link da obra' }}
+    </button>
+  </div>
+</div>

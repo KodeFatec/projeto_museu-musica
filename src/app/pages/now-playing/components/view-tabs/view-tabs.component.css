@@ -1,0 +1,10 @@
+:host { display: block; width: 100%; }
+
+.tabs { display: flex; gap: 0.25rem; padding: 0.3rem; border-radius: 999px; background: #efe9e0; }
+.tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.7rem 0.4rem; border: 0; border-radius: 999px; background: none; cursor: pointer; font: 500 0.78rem/1.15 var(--font-sans); color: #3b352e; transition: background 0.25s, color 0.25s; }
+.tab svg { width: 1.1rem; flex: none; }
+.tab--active { background: var(--olive-900); color: #fff; box-shadow: 0 4px 10px rgba(28, 36, 29, 0.25); }
+
+@media (min-width: 1024px) {
+  :host { display: none; }
+}

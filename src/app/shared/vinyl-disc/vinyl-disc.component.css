@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  container-type: inline-size; /* textos do selo escalam com cqw */
+}
+
+.disc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.platter {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: repeating-radial-gradient(circle, #121110 0, #1d1c1a 1.5px, #141312 3px, #292826 4.5px, #121110 6px);
+  box-shadow: inset 0 0 0 1.6cqw #1a1918, inset 0 0 14px rgba(255, 255, 255, 0.08);
+  animation: platter-spin 22s linear infinite;
+}
+
+.platter.paused {
+  animation-play-state: paused;
+}
+
+/* risco discreto: deixa a rotação visível mesmo com as ranhuras uniformes */
+.platter::after {
+  content: '';
+  position: absolute;
+  inset: 7%;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+
+.shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 45deg, rgba(255, 255, 255, 0.08) 0deg, transparent 60deg, rgba(255, 255, 255, 0.14) 120deg,
+    transparent 180deg, rgba(255, 255, 255, 0.08) 240deg, transparent 300deg, rgba(255, 255, 255, 0.14) 360deg);
+}
+
+.label {
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0.8cqw solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  text-align: center;
+  line-height: 1.1;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.line {
+  font-family: var(--font-type);
+  font-size: 3.2cqw;
+  opacity: 0.85;
+}
+
+.line--main {
+  font-family: var(--font-sans);
+  font-size: 3.8cqw;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  opacity: 1;
+}
+
+.spindle {
+  position: absolute;
+  z-index: 2;
+  width: 4.5cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--creme-50);
+  border: 0.8cqw solid #1f1d1b;
+}
+
+@keyframes platter-spin {
+  to { transform: rotate(360deg); }
+}

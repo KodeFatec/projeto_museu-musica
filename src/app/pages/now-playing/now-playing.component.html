@@ -1,0 +1,39 @@
+@if (player.track(); as t) {
+  <div class="console">
+    <app-player-header [subtitle]="t.genre ?? 'Acervo'" [audioFormat]="audioFormat()" (back)="goBack()" />
+
+    <main class="stage">
+      <!-- Coluna 1: identidade (mídia, título, QR) -->
+      <section class="col col--identity">
+        <app-track-media [track]="t" [playing]="player.playing()" (toggle)="player.toggle()" />
+        <app-track-info [track]="t" />
+        <app-view-tabs [tabs]="tabs" [active]="activeTab()" (tabChange)="activeTab.set($event)" />
+        <app-qr-code class="panel panel--qr" [class.is-active]="activeTab() === 'qr'" [value]="qrUrl()" />
+      </section>
+
+      <!-- Coluna 2: letra -->
+      <section class="col col--lyrics panel" [class.is-active]="activeTab() === 'lyrics'">
+        <app-lyrics [verses]="player.lyrics()" [currentIndex]="player.currentVerse()" [composers]="composers()" [note]="recordedIn()" />
+      </section>
+
+      <!-- Coluna 3: partitura e participações -->
+      <section class="col col--artifacts panel" [class.is-active]="activeTab() === 'score'">
+        @if (player.score(); as score) {
+          <app-score-plate class="block" [score]="score" />
+        }
+        @if (t.artists.length) {
+          <app-participants-list class="block" [artists]="t.artists" />
+        }
+        @if (!hasArtifacts()) {
+          <p class="empty">Esta música ainda não tem partitura nem artistas cadastrados.</p>
+        }
+      </section>
+    </main>
+
+    <app-player-bar [track]="t" />
+  </div>
+} @else if (player.status() === 'error') {
+  <p class="state">Não foi possível abrir esta música. <a routerLink="/inicio">Voltar ao início</a></p>
+} @else {
+  <p class="state">Carregando…</p>
+}

@@ -1,0 +1,11 @@
+<div class="disc">
+  <div class="platter" [class.paused]="!spinning()">
+    <div class="label" [style.background]="label().bg" [style.color]="label().fg" [style.borderColor]="label().ring">
+      @for (line of label().lines; track $index) {
+        <span class="line" [class.line--main]="$first">{{ line }}</span>
+      }
+    </div>
+    <span class="spindle"></span>
+  </div>
+  <div class="shine"></div>
+</div>

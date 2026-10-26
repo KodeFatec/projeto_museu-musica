@@ -1,0 +1,11 @@
+<div class="tabs" role="tablist">
+  @for (tab of tabs(); track tab.id) {
+    <button type="button" role="tab" class="tab" [class.tab--active]="tab.id === active()"
+            [attr.aria-selected]="tab.id === active()" (click)="tabChange.emit(tab.id)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path [attr.d]="tab.icon" />
+      </svg>
+      <span>{{ tab.label }}</span>
+    </button>
+  }
+</div>

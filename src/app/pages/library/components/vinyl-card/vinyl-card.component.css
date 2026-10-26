@@ -1,0 +1,124 @@
+:host {
+  display: block;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  cursor: pointer;
+  outline: none;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  max-width: 13rem;
+  aspect-ratio: 1;
+  margin-bottom: 0.7rem;
+  transition: transform 0.5s ease-out;
+}
+
+.shadow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  filter: blur(16px);
+  transition: filter 0.5s;
+}
+
+.disc {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.7s ease-out;
+}
+
+.play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  z-index: 3;
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(197, 154, 69, 0.92);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.play svg {
+  width: 1.5rem;
+  margin-left: 0.1rem;
+}
+
+.title {
+  margin: 0;
+  font: 700 1.05rem/1.2 var(--font-serif);
+  color: #1e1915;
+  transition: color 0.3s;
+}
+
+.meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.meta em {
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+}
+
+.label-line {
+  display: none;
+  margin-top: 0.25rem;
+  font: 500 0.62rem var(--font-type);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9e907b;
+}
+
+.card:hover .stage,
+.card:focus-within .stage {
+  transform: scale(1.05);
+}
+.card:hover .shadow,
+.card:focus-within .shadow {
+  filter: blur(26px);
+}
+.card:hover .disc,
+.card:focus-within .disc {
+  transform: rotate(45deg);
+}
+.card:hover .play,
+.card:focus-within .play {
+  opacity: 1;
+  transform: scale(1);
+}
+.card:hover .title,
+.card:focus-within .title {
+  color: var(--gold-600);
+}
+
+@media (min-width: 1024px) {
+  .card {
+    align-items: center;
+    text-align: center;
+  }
+  .stage {
+    margin-bottom: 0.9rem;
+  }
+  .title {
+    font-size: 1.35rem;
+  }
+  .meta {
+    font-size: 0.8rem;
+  }
+  .label-line {
+    display: block;
+  }
+}

@@ -1,0 +1,309 @@
+:host {
+  display: contents;
+}
+
+/* ============ DESKTOP ============ */
+.topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(250, 247, 240, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e7dfcf;
+}
+
+.main {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  text-decoration: none;
+  color: inherit;
+  flex: none;
+}
+
+.monogram {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--gold-500);
+  background: var(--creme-200);
+  color: var(--gold-600);
+  font: 700 1rem var(--font-display);
+  transition: transform 0.3s;
+}
+
+.brand:hover .monogram {
+  transform: scale(1.05);
+}
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand__name {
+  font: 600 0.82rem var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #26211c;
+  transition: color 0.3s;
+}
+
+.brand:hover .brand__name {
+  color: var(--gold-600);
+}
+
+.brand__tag {
+  font: 500 0.6rem var(--font-sans);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #8c8070;
+}
+
+.search {
+  position: relative;
+  flex: 1;
+  max-width: 36rem;
+}
+.search svg {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  width: 1rem;
+  translate: 0 -50%;
+  fill: none;
+  stroke: #9f9484;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.search input {
+  width: 100%;
+  padding: 0.65rem 6.5rem 0.65rem 2.5rem;
+  border: 1px solid #ded4c2;
+  border-radius: 999px;
+  background: #f2ecdf;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  font: 400 0.75rem var(--font-sans);
+  color: #332d26;
+}
+.search input:focus {
+  outline: none;
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 1px var(--gold-500);
+}
+.search__hint {
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  pointer-events: none;
+  font: 600 0.62rem var(--font-display);
+  letter-spacing: 0.1em;
+  color: #b1a594;
+}
+.search kbd {
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid #d5cbb9;
+  background: #e8e0d0;
+  font: 400 0.62rem monospace;
+  color: #7e7465;
+}
+
+.links {
+  display: none;
+  gap: 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.links a {
+  padding-bottom: 0.15rem;
+  border-bottom: 2px solid transparent;
+  font: 500 0.72rem var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #5f5547;
+  transition: color 0.3s;
+}
+.links a:hover {
+  color: var(--gold-600);
+}
+.links a.active {
+  color: var(--gold-600);
+  font-weight: 600;
+  border-bottom-color: var(--gold-600);
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 1rem;
+  border-left: 1px solid #e2d9c8;
+  flex: none;
+}
+
+.profile__text {
+  display: none;
+  text-align: right;
+  flex-direction: column;
+}
+
+.profile__name {
+  font: 600 0.75rem var(--font-sans);
+  color: #2d2821;
+}
+
+.profile__role {
+  font: 500 0.6rem var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-600);
+}
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #faf6ee;
+  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.4);
+  font: 700 0.72rem var(--font-display);
+  color: #6f5b39;
+}
+
+@media (min-width: 1024px) {
+  .topbar {
+    display: block;
+  }
+  .profile__text {
+    display: flex;
+  }
+}
+@media (min-width: 1024px) {
+  .links {
+    display: flex;
+  }
+}
+/* ============ MOBILE: barra com notch ============ */
+.dock {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 50;
+  padding: 1.6rem 0.75rem max(0.6rem, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 45%, transparent);
+  pointer-events: none;
+}
+.dock > * {
+  pointer-events: auto;
+}
+
+.dock__inner {
+  --notch-x: 70%;
+  --lift: -8px;
+  position: relative;
+  transition: --notch-x 0.5s cubic-bezier(0.5, 1.35, 0.5, 1);
+  filter: drop-shadow(0 -4px 14px rgba(0, 0, 0, 0.08)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.06));
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 1.75rem;
+  background: #fff;
+  -webkit-mask: radial-gradient(circle 33px at var(--notch-x) var(--lift), transparent 32px, #000 33.5px);
+  mask: radial-gradient(circle 33px at var(--notch-x) var(--lift), transparent 32px, #000 33.5px);
+}
+
+.tab {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: rgba(38, 51, 40, 0.6);
+  font: 500 0.62rem var(--font-sans);
+}
+.tab__icon {
+  width: 1.3rem;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 0.2s, transform 0.3s;
+}
+.tab--active {
+  color: var(--olive-900);
+  font-weight: 700;
+}
+.tab--active .tab__icon {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.6);
+}
+
+.bubble {
+  position: absolute;
+  left: var(--notch-x);
+  top: calc(var(--lift) - 26px);
+  width: 52px;
+  height: 52px;
+  translate: -50% 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--olive-900);
+  color: var(--gold-300);
+  box-shadow: 0 0 0 6px var(--bg);
+  pointer-events: none;
+}
+.bubble__icon {
+  grid-area: 1/1;
+  width: 1.45rem;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: translateY(10px) scale(0.5);
+  transition: opacity 0.2s, transform 0.35s;
+}
+.bubble__icon.on {
+  opacity: 1;
+  transform: none;
+  transition-delay: 0.15s;
+}
+
+@media (min-width: 1024px) {
+  .dock {
+    display: none;
+  }
+}
+
+.tab { text-decoration: none; }
+.profile__text { align-items: flex-end; }

@@ -1,0 +1,32 @@
+:host { display: block; }
+
+.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 700 0.72rem var(--font-type); letter-spacing: 0.12em; text-transform: uppercase; color: #262626; }
+h3 svg { width: 1rem; color: var(--gold-600); }
+.badge { padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(212, 177, 106, 0.18); font: 700 0.62rem var(--font-serif); color: var(--gold-700); }
+
+.plate {
+  position: relative;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(170, 133, 60, 0.4);
+  background: #f4ecd8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.plate::before { content: ''; position: absolute; inset: 0; background: rgba(120, 72, 10, 0.05); mix-blend-mode: multiply; pointer-events: none; }
+
+.staves { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; min-height: 7rem; padding: 0.25rem 0; color: #262626; }
+.staff { position: relative; display: flex; align-items: center; justify-content: space-around; height: 1.6rem; padding: 0 0.5rem; border-block: 1px solid rgba(82, 82, 82, 0.5); }
+.staff--sign { justify-content: flex-end; height: 1.3rem; border-top: 0; }
+.clef { position: absolute; left: 0.5rem; top: -0.3rem; font: 700 1.6rem var(--font-serif); }
+.clef--bass { top: -0.1rem; font-size: 1.1rem; }
+.time { margin-left: 1.6rem; font: 700 0.75rem var(--font-type); }
+.notes { display: flex; gap: 0.5rem; font-size: 0.95rem; }
+.notes--bass { gap: 0.75rem; margin-left: 1.6rem; }
+.annotation { position: absolute; right: 0.5rem; bottom: -0.85rem; max-width: 70%; overflow: hidden; text-overflow: ellipsis; font: 400 0.95rem var(--font-script); color: #78350f; white-space: nowrap; }
+.signature { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 1rem var(--font-script); color: #451a03; }
+
+.foot { position: relative; display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; padding-top: 0.3rem; border-top: 1px solid rgba(170, 133, 60, 0.2); font: 400 0.65rem var(--font-sans); color: #525252; }
+.foot a { font: 600 0.65rem var(--font-sans); color: #7c5a1c; text-decoration: underline; white-space: nowrap; }
+.foot a:hover { color: #3b2a0b; }

@@ -1,0 +1,20 @@
+<article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
+  <div class="cover">
+    <app-vinyl-disc class="slip" [label]="label()" />
+    <div class="sleeve" [style.background]="color()">
+      <header class="top">
+        <p class="record">{{ track().genre ?? 'Acervo' }}</p>
+        <h4 class="headline">{{ mainArtist() }}</h4>
+        @if (note()) {
+          <p class="note">{{ note() }}</p>
+        }
+      </header>
+      <footer class="bottom">
+        <p class="song">{{ track().title }}</p>
+        <p class="spec">{{ track().isrc ?? 'Museu da Música' }}@if (track().year) { • {{ track().year }}}</p>
+      </footer>
+    </div>
+  </div>
+  <h3 class="title">{{ track().title }}</h3>
+  <p class="meta">{{ artists() }}@if (track().year) { • <em>{{ track().year }}</em>}</p>
+</article>

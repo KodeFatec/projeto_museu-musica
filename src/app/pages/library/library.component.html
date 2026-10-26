@@ -1,0 +1,116 @@
+<div class="page">
+  <!-- mobile -->
+  <header class="mobile-head">
+    <div class="mobile-head__row">
+      <h1>Minha Biblioteca</h1>
+      <button type="button" class="back" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path
+            d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+    <label class="search">
+      <span class="sr-only">Buscar no acervo</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path
+          d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <input
+        type="search"
+        placeholder="Buscar vinis, fitas cassete ou artistas..."
+        [value]="library.query()"
+        (input)="onSearch($event)"
+      />
+      <span class="search__hint">Hi-Fi</span>
+    </label>
+  </header>
+
+  <!-- desktop -->
+  <section class="intro">
+    <div>
+      <p class="eyebrow"><span></span>Acervo Pessoal de Audição</p>
+      <h1>Minha Biblioteca</h1>
+      <p class="lead">
+        Catálogo curado de prensagens originais, gravações de fita magnética e arquivos analógicos
+        masterizados.
+      </p>
+    </div>
+    <div class="pills" role="group" aria-label="Filtrar por formato">
+      @for (f of filters; track f.id) {
+        <button
+          type="button"
+          [class.on]="library.filter() === f.id"
+          [attr.aria-pressed]="library.filter() === f.id"
+          (click)="library.filter.set(f.id)"
+        >
+          {{ f.label }}
+        </button>
+      }
+    </div>
+  </section>
+
+  @if (library.status() === 'error') {
+    <div class="state">
+      <p>{{ library.error() }}</p>
+      <button type="button" (click)="library.reload()">Tentar novamente</button>
+    </div>
+  } @else if (library.status() === 'loading') {
+    <p class="state">Carregando o acervo…</p>
+  }
+
+  <div class="sections">
+    <app-library-section
+      title="Mais Ouvidas"
+      subtitle="Mais tocadas no seu histórico"
+      [action]="'Ver todas (' + library.mostPlayedAll().length + ') →'"
+      shortAction="Ver todas"
+      minItem="12rem"
+      mobileItem="8rem"
+    >
+      @for (track of library.mostPlayed(); track track.id) {
+        <app-track-card [track]="track" (play)="play($event)" />
+      } @empty {
+        <p class="empty">Nenhum item encontrado.</p>
+      }
+    </app-library-section>
+
+    <app-library-section
+      title="Ouvidas Recentemente"
+      subtitle="Seu histórico de escuta"
+      action="Histórico Completo →"
+      shortAction="Histórico"
+      accent="olive"
+      minItem="16rem"
+      mobileItem="9rem"
+    >
+      @for (track of library.recentlyPlayed(); track track.id) {
+        <app-track-card [track]="track" (play)="play($event)" />
+      } @empty {
+        <p class="empty">Nenhum item encontrado.</p>
+      }
+    </app-library-section>
+
+    <app-library-section
+      title="Curtidas"
+      subtitle="Suas músicas favoritas"
+      [action]="'Gerenciar Acervo →'"
+      [shortAction]="library.likedAll().length + ' faixas'"
+      accent="heart"
+      minItem="14rem"
+      mobileItem="8rem"
+    >
+      @for (track of library.liked(); track track.id) {
+        <app-track-card [track]="track" (play)="play($event)" />
+      } @empty {
+        <p class="empty">Nenhum item encontrado.</p>
+      }
+    </app-library-section>
+  </div>
+</div>
