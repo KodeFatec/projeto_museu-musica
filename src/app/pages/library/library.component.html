@@ -28,7 +28,7 @@
         [value]="library.query()"
         (input)="onSearch($event)"
       />
-      <span class="search__hint">Hi-Fi</span>
+      <!-- <span class="search__hint">Hi-Fi</span> -->
     </label>
   </header>
 
@@ -37,12 +37,12 @@
     <div>
       <p class="eyebrow"><span></span>Acervo Pessoal de Audição</p>
       <h1>Minha Biblioteca</h1>
-      <p class="lead">
+      <!-- <p class="lead">
         Catálogo curado de prensagens originais, gravações de fita magnética e arquivos analógicos
         masterizados.
-      </p>
+      </p> -->
     </div>
-    <div class="pills" role="group" aria-label="Filtrar por formato">
+    <!-- <div class="pills" role="group" aria-label="Filtrar por formato">
       @for (f of filters; track f.id) {
         <button
           type="button"
@@ -53,7 +53,7 @@
           {{ f.label }}
         </button>
       }
-    </div>
+    </div> -->
   </section>
 
   @if (library.status() === 'error') {

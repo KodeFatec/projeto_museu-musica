@@ -1,14 +1,23 @@
 :host {
   display: block;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .page {
-  padding: 0.5rem 0 11rem 1.5rem;
+  min-width: 0;
+  padding: 0.5rem 0 11rem max(1.5rem, env(safe-area-inset-left));
 }
 
 .sections {
   display: grid;
+  /* minmax(0, 1fr): sem isso a coluna cresce até a largura total dos carrosséis e a página inteira vira rolável na horizontal */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
+}
+
+.sections > * {
+  min-width: 0;
 }
 
 .empty {

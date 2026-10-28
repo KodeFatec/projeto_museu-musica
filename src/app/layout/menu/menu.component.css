@@ -209,7 +209,8 @@
   position: fixed;
   inset: auto 0 0 0;
   z-index: 50;
-  padding: 1.6rem 0.75rem max(0.6rem, env(safe-area-inset-bottom));
+  max-width: 100%;
+  padding: 1.6rem max(0.75rem, env(safe-area-inset-right)) max(0.6rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   background: linear-gradient(to top, var(--bg) 45%, transparent);
   pointer-events: none;
 }
@@ -221,13 +222,17 @@
   --notch-x: 70%;
   --lift: -8px;
   position: relative;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
   transition: --notch-x 0.5s cubic-bezier(0.5, 1.35, 0.5, 1);
   filter: drop-shadow(0 -4px 14px rgba(0, 0, 0, 0.08)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.06));
 }
 
 .bar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* minmax(0, 1fr): impede que o texto dos rótulos alargue a coluna e empurre a barra para fora da tela */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   height: 4rem;
   margin: 0;
   padding: 0;
@@ -240,7 +245,9 @@
 
 .tab {
   width: 100%;
+  min-width: 0;
   height: 100%;
+  padding: 0 0.15rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -250,7 +257,13 @@
   background: none;
   cursor: pointer;
   color: rgba(38, 51, 40, 0.6);
-  font: 500 0.62rem var(--font-sans);
+  font: 500 clamp(0.5rem, 2.6vw, 0.62rem) var(--font-sans);
+}
+.tab__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab__icon {
   width: 1.3rem;
