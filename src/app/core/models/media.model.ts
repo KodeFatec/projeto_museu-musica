@@ -1,4 +1,4 @@
-export type MediaFormat = 'vinyl' | 'cassette';
+export type MediaFormat = 'vinyl' | 'cassette' | 'cd';
 
 /** Selo central do vinil (todo o conteúdo é derivado dos campos da música). */
 export interface VinylLabel {

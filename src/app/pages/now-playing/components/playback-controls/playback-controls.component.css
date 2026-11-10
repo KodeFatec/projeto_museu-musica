@@ -13,7 +13,7 @@ button:active { transform: scale(0.94); }
 .skip svg { width: 2.6rem; }
 .ic-desktop { display: none; }
 
-.play { width: 4.5rem; height: 4.5rem; border-radius: 50%; border: 1px solid #3d4a3f; background: var(--olive-900); color: var(--gold-500); box-shadow: 0 8px 18px rgba(28, 36, 29, 0.3); }
+.play { width: 4.5rem; height: 4.5rem; border-radius: 50%; border: 1px solid var(--blue-300); background: var(--blue-500); color: var(--gold-300); box-shadow: 0 8px 18px rgba(9, 39, 169, 0.32); }
 .play svg { width: 2rem; }
 
 @media (min-width: 1024px) {

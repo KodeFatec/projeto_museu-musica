@@ -1,0 +1,127 @@
+:host {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  container-type: inline-size; /* textos do selo escalam com cqw */
+}
+
+.disc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.platter {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  /* policarbonato prateado */
+  background:
+    radial-gradient(circle, transparent 0 29%, rgba(255, 255, 255, 0.18) 29.2% 29.5%, transparent 29.8% 42%,
+      rgba(255, 255, 255, 0.16) 42.2% 42.5%, transparent 42.8% 73%, rgba(255, 255, 255, 0.22) 73.2% 73.5%, transparent 73.8%),
+    conic-gradient(from 20deg, #e9ecef, #bfc5cc, #f6f7f9, #aab1ba, #eef0f3, #c4cad2, #e9ecef);
+  box-shadow: inset 0 0 0 0.8cqw #cfd4da, inset 0 0 12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.12);
+  animation: platter-spin 6s linear infinite;
+}
+.platter.paused { animation-play-state: paused; }
+
+.disc-ring {
+  position: absolute;
+  border: 1px solid rgba(112, 121, 132, 0.24);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.disc-ring--outer {
+  inset: 5%;
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(104, 112, 122, 0.16);
+}
+
+.disc-ring--inner {
+  inset: 24%;
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 0 1px rgba(91, 101, 112, 0.12);
+}
+
+.disc--gold .platter {
+  background:
+    radial-gradient(circle at 32% 25%, rgba(255, 250, 190, 0.76), transparent 34%),
+    radial-gradient(circle, #ffe680 0%, #f6c847 58%, #dda92b 100%);
+  box-shadow:
+    inset 0 0 12px rgba(121, 76, 8, 0.12),
+    inset 0 0 24px rgba(255, 247, 177, 0.54);
+}
+
+/* área impressa (arte do CD) */
+.print {
+  width: 88%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.6cqw;
+  padding-top: 11cqw;
+  text-align: center;
+  line-height: 1.1;
+  /* recorte do anel interno (onde fica o hub) */
+  -webkit-mask: radial-gradient(circle, transparent 0 14cqw, #000 14.4cqw);
+  mask: radial-gradient(circle, transparent 0 14cqw, #000 14.4cqw);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.line {
+  font-family: var(--font-text);
+  font-size: 3.2cqw;
+  opacity: 0.88;
+}
+.line--main {
+  font-family: var(--font-title);
+  font-size: 4.2cqw;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 1;
+}
+
+/* anel de plástico transparente + furo */
+.hub {
+  position: absolute;
+  width: 28%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0 45%, rgba(220, 224, 230, 0.7) 46% 100%);
+  border: 0.5cqw solid rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.hole {
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* reflexo parado (a luz não gira com o disco) */
+.shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    conic-gradient(from 45deg, rgba(255, 255, 255, 0.35) 0deg, transparent 50deg, rgba(255, 255, 255, 0.5) 120deg,
+      transparent 190deg, rgba(255, 255, 255, 0.3) 240deg, transparent 300deg, rgba(255, 255, 255, 0.5) 360deg),
+    linear-gradient(115deg, transparent 28%, rgba(111, 214, 230, 0.12) 38%, rgba(207, 151, 255, 0.12) 47%, transparent 58%);
+  mix-blend-mode: soft-light;
+}
+
+@keyframes platter-spin {
+  to { transform: rotate(360deg); }
+}

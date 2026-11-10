@@ -12,4 +12,6 @@ import { CassetteSpec } from '../../core/models/media.model';
 export class CassetteTapeComponent {
   readonly spec = input.required<CassetteSpec>();
   readonly spinning = input(false);
+  /** Disco de ouro: a fita ganha a carcaça dourada. */
+  readonly gold = input(false);
 }

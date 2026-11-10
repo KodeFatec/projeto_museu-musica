@@ -1,10 +1,16 @@
 @if (track(); as t) {
   <aside class="player" aria-label="Player">
-    <div class="thumb" [class.thumb--tape]="!isVinyl()" [class.paused]="!player.playing()">
-      @if (isVinyl()) {
-        <app-vinyl-disc [label]="label()!" [spinning]="player.playing()" />
-      } @else {
-        <app-cassette-tape [spec]="spec()!" [spinning]="player.playing()" />
+    <div class="thumb" [class.thumb--tape]="format() === 'cassette'" [class.paused]="!player.playing()">
+      @switch (format()) {
+        @case ('vinyl') {
+          <app-vinyl-disc [label]="label()!" [spinning]="player.playing()" />
+        }
+        @case ('cd') {
+          <app-cd-disc [label]="label()!" [spinning]="player.playing()" />
+        }
+        @default {
+          <app-cassette-tape [spec]="spec()!" [spinning]="player.playing()" />
+        }
       }
     </div>
 

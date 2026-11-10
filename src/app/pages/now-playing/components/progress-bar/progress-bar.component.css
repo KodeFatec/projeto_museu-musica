@@ -11,7 +11,7 @@
 .range { grid-area: bar; }
 .time--now { grid-area: now; }
 .time--total { grid-area: total; text-align: right; }
-.time { font: 400 0.82rem var(--font-type); color: #57534e; }
+.time { font: 400 0.82rem var(--font-text); color: #57534e; }
 
 .range {
   --pct: 0%;

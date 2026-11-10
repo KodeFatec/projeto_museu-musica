@@ -19,7 +19,8 @@ export class MiniPlayerComponent {
   private readonly library = inject(LibraryService);
   private readonly router = inject(Router);
   protected readonly track = this.player.track;
-  protected readonly isVinyl = computed(() => formatByYear(this.track()?.year ?? null) === 'vinyl');
+  protected readonly format = computed(() => formatByYear(this.track()?.year ?? null));
+  protected readonly gold = computed(() => (this.track() ? this.library.isGold(this.track()!.id) : false));
   protected readonly label = computed(() => (this.track() ? vinylLabelOf(this.track()!) : null));
   protected readonly spec = computed(() => (this.track() ? cassetteOf(this.track()!) : null));
   protected readonly artists = computed(() => (this.track() ? artistLine(this.track()!) : ''));

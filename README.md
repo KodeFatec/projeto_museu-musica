@@ -32,7 +32,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 | Na tela | Tabela.coluna |
 |---|---|
 | Título | musica.titulo |
-| Vinil (<= 1979) ou K7 (>= 1980) | musica.ano_gravacao (sem ano = vinil) |
+| Vinil (<= 1979), K7 (1980–1989) ou CD (>= 1990) | musica.ano_gravacao (sem ano = vinil) |
 | Duração, barra de progresso | musica.duracao |
 | Gênero (selo, eyebrow, badges) | genero_musical.nome via musica.id_genero |
 | Artistas ao lado do título | artista.nome_artistico via musica_artista (2 primeiros) |
@@ -45,10 +45,14 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 | Partitura (título, origem, estado, autor, ano, arquivo) | partitura + item_acervo |
 | Curtidas / coração | musica_favorita |
 | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
+| Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
 | Nome e função no menu | usuario.nome + perfil_usuario.nome |
 | QR Code | link /tocando/:id da própria aplicação |
 
-Cores do vinil/fita não existem no banco: vêm de uma paleta escolhida pelo id da música.
+## Identidade visual
+Cores: azul `#0927a9` (poucos destaques) e dourado/bege `#c59a45` + subtons. Fontes: Roboto (texto) e Roboto Condensed (títulos). Tokens em `src/styles.css`.
+
+Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo id da música.
 
 ## Rotas da API
 Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.

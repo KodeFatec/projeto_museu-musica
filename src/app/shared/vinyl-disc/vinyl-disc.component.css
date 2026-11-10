@@ -24,6 +24,19 @@
   animation: platter-spin 22s linear infinite;
 }
 
+/* Superficie lisa, com variacao suave de luz para manter o aspecto metalico. */
+.platter--gold {
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 249, 183, 0.72), transparent 38%),
+    radial-gradient(circle, #ffe476 0%, #f5c43f 58%, #dca928 100%);
+  box-shadow:
+    inset 0 0 10px rgba(121, 76, 8, 0.16),
+    inset 0 0 22px rgba(255, 247, 177, 0.5);
+}
+.platter--gold::after {
+  display: none;
+}
+
 .platter.paused {
   animation-play-state: paused;
 }
@@ -64,13 +77,13 @@
 }
 
 .line {
-  font-family: var(--font-type);
+  font-family: var(--font-text);
   font-size: 3.2cqw;
   opacity: 0.85;
 }
 
 .line--main {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 3.8cqw;
   font-weight: 800;
   letter-spacing: 0.12em;

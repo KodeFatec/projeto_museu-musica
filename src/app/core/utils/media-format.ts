@@ -3,11 +3,13 @@ import { Track } from '../models/track.model';
 import { formatClock } from './time';
 import { artistLine } from './track-presenter';
 
-/** Até este ano a faixa aparece em vinil; a partir de 1980, em fita K7. Sem ano = acervo antigo (vinil). */
+/** Até 1979 a faixa aparece em vinil; de 1980 a 1989, em fita K7; a partir de 1990, em CD. Sem ano = acervo antigo (vinil). */
 export const VINYL_LIMIT_YEAR = 1979;
+export const CASSETTE_LIMIT_YEAR = 1989;
 
 export function formatByYear(year: number | null): MediaFormat {
-  return year === null || year <= VINYL_LIMIT_YEAR ? 'vinyl' : 'cassette';
+  if (year === null || year <= VINYL_LIMIT_YEAR) return 'vinyl';
+  return year <= CASSETTE_LIMIT_YEAR ? 'cassette' : 'cd';
 }
 
 // O banco não guarda cores. Elas vêm de uma paleta, escolhida pelo id da música (sempre a mesma por faixa).
@@ -24,6 +26,7 @@ const paletteOf = (track: Track) => PALETTES[track.id % PALETTES.length];
 
 const shorten = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
+/** Selo impresso (vinil e CD usam o mesmo: cor, gênero, título e ano). */
 export function vinylLabelOf(track: Track): VinylLabel {
   const p = paletteOf(track);
   return {

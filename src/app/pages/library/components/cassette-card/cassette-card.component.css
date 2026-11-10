@@ -13,8 +13,8 @@
 
 .title {
   margin: 0.55rem 0 0;
-  font: 600 0.78rem/1.25 var(--font-sans);
-  color: var(--olive-900);
+  font: 600 0.78rem/1.25 var(--font-text);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -30,9 +30,9 @@
   font-size: 0.72rem;
   color: var(--muted);
 }
-.meta em { font-family: var(--font-serif); font-size: 0.85rem; }
+.meta em { font-family: var(--font-text); font-size: 0.85rem; }
 .meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge { display: none; padding: 0.1rem 0.4rem; border-radius: 4px; background: #dfd6c5; color: #5d5447; font: 400 0.62rem var(--font-type); white-space: nowrap; }
+.badge { display: none; padding: 0.1rem 0.4rem; border-radius: 4px; background: #dfd6c5; color: #5d5447; font: 400 0.62rem var(--font-text); white-space: nowrap; }
 
 /* Hover: a fita levanta um pouco */
 .card:hover .tape,
@@ -42,6 +42,6 @@
   .card { padding: 0.75rem; background: rgba(237, 230, 216, 0.6); border-color: #decdb7; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
   .card:hover, .card:focus-visible { background: #eae2d2; box-shadow: 0 8px 20px rgba(60, 45, 20, 0.12); }
   .card:hover .title { color: var(--gold-600); }
-  .title { margin-top: 0.8rem; font: 700 1.15rem var(--font-serif); }
+  .title { margin-top: 0.8rem; font: 700 1.15rem var(--font-title); }
   .badge { display: inline-block; }
 }

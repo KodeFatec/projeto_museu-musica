@@ -8,7 +8,10 @@ import { formatByYear } from '../utils/media-format';
 import { parseTime } from '../utils/time';
 import { CatalogService, LoadStatus } from './catalog.service';
 
-export type FormatFilter = 'all' | 'vinyl' | 'cassette';
+export type FormatFilter = 'all' | 'vinyl' | 'cassette' | 'cd';
+
+/** Quantas músicas entram em "Mais Ouvidas" — todas elas recebem o disco de ouro. */
+const GOLD_TOP = 5;
 
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -42,7 +45,10 @@ export class LibraryService {
     return this.tracksOf([...new Set(ids)]);
   });
 
-  readonly mostPlayed = computed(() => this.visible(this.mostPlayedAll()).slice(0, 5));
+  /** Ids das músicas mais escutadas (disco de ouro). */
+  readonly goldIds = computed(() => new Set(this.mostPlayedAll().slice(0, GOLD_TOP).map((t) => t.id)));
+
+  readonly mostPlayed = computed(() => this.visible(this.mostPlayedAll()).slice(0, GOLD_TOP));
   readonly recentlyPlayed = computed(() => this.visible(this.recentAll()).slice(0, 4));
   readonly liked = computed(() => this.visible(this.likedAll()).slice(0, 4));
 
@@ -60,6 +66,10 @@ export class LibraryService {
     this.loading = undefined;
     await this.catalog.reload();
     return this.load();
+  }
+
+  isGold(songId: number): boolean {
+    return this.goldIds().has(songId);
   }
 
   isLiked(songId: number): boolean {

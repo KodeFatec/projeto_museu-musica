@@ -15,8 +15,8 @@ import { ActivatedRoute } from '@angular/router';
   styles: `
     :host { display: block; flex: none; }
     .soon { padding: 3rem 1.5rem 10rem; text-align: center; }
-    h1 { margin: 0; font: 600 2rem var(--font-serif); color: var(--olive-900); }
-    p { margin: 0.5rem 0 0; font: italic 400 1.1rem var(--font-serif); color: var(--muted); }
+    h1 { margin: 0; font: 600 2rem var(--font-title); color: var(--ink); }
+    p { margin: 0.5rem 0 0; font: italic 400 1.1rem var(--font-title); color: var(--muted); }
   `,
 })
 export class ComingSoonComponent {

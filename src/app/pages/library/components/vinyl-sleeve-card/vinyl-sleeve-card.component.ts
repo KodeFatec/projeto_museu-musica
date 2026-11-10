@@ -13,6 +13,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
 })
 export class VinylSleeveCardComponent {
   readonly track = input.required<Track>();
+  readonly gold = input(false);
   // o selo do disco na luva é liso (sem texto), só a cor
   protected readonly label = computed(() => ({ ...vinylLabelOf(this.track()), lines: [] }));
   protected readonly color = computed(() => sleeveColorOf(this.track()));

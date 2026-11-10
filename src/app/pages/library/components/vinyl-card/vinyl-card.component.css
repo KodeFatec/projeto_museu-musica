@@ -58,7 +58,7 @@
 
 .title {
   margin: 0;
-  font: 700 1.05rem/1.2 var(--font-serif);
+  font: 700 1.05rem/1.2 var(--font-title);
   color: #1e1915;
   transition: color 0.3s;
 }
@@ -69,14 +69,14 @@
   color: var(--muted);
 }
 .meta em {
-  font-family: var(--font-serif);
+  font-family: var(--font-text);
   font-size: 0.85rem;
 }
 
 .label-line {
   display: none;
   margin-top: 0.25rem;
-  font: 500 0.62rem var(--font-type);
+  font: 500 0.62rem var(--font-text);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #9e907b;

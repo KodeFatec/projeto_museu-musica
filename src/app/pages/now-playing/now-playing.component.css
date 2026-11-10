@@ -8,7 +8,7 @@
 .col--identity app-view-tabs { margin-top: 1.5rem; }
 .col--lyrics, .col--artifacts { padding: 1rem 1.25rem 0; }
 .block { display: block; margin-bottom: 1.5rem; }
-.empty { margin: 1rem 0; font: italic 400 1.1rem/1.5 var(--font-serif); color: var(--muted); text-align: center; }
+.empty { margin: 1rem 0; font: italic 400 1.1rem/1.5 var(--font-text); color: var(--muted); text-align: center; }
 
 /* no mobile só o painel da aba ativa aparece */
 .panel { display: none; }
@@ -47,5 +47,5 @@
   .block { margin-bottom: 1.25rem; }
 }
 
-.state { margin: 3rem 1.5rem; text-align: center; font: italic 400 1.15rem var(--font-serif); color: var(--muted); }
+.state { margin: 3rem 1.5rem; text-align: center; font: italic 400 1.15rem var(--font-text); color: var(--muted); }
 .state a { color: var(--gold-700); }

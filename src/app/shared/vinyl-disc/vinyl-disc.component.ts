@@ -12,4 +12,6 @@ import { VinylLabel } from '../../core/models/media.model';
 export class VinylDiscComponent {
   readonly label = input.required<VinylLabel>();
   readonly spinning = input(false);
+  /** Disco de ouro: música entre as mais escutadas. */
+  readonly gold = input(false);
 }

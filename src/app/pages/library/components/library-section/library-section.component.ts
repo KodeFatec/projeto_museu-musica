@@ -14,7 +14,7 @@ export class LibrarySectionComponent {
   readonly subtitle = input<string>();
   readonly action = input<string>();
   readonly shortAction = input<string>();
-  readonly accent = input<'gold' | 'olive' | 'heart'>('gold');
+  readonly accent = input<'gold' | 'blue' | 'heart'>('gold');
   /** Largura mínima de cada item na grade (desktop). */
   readonly minItem = input('13rem');
   /** Largura de cada item no carrossel (mobile). */

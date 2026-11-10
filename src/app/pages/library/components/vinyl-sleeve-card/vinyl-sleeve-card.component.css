@@ -49,7 +49,7 @@
 
 .record {
   margin: 0;
-  font: 600 clamp(0.4rem, 3.3cqw, 0.65rem) var(--font-sans);
+  font: 600 clamp(0.4rem, 3.3cqw, 0.65rem) var(--font-text);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold-300);
@@ -57,7 +57,7 @@
 
 .headline {
   margin: 0.2em 0 0;
-  font: 600 clamp(0.7rem, 7.5cqw, 1.7rem)/1.1 var(--font-serif);
+  font: 600 clamp(0.7rem, 7.5cqw, 1.7rem)/1.1 var(--font-title);
 }
 
 .note {
@@ -67,7 +67,7 @@
   overflow: hidden;
   display: none;
   margin: 0.3em 0 0;
-  font: italic 400 clamp(0.6rem, 3.8cqw, 0.8rem) var(--font-serif);
+  font: italic 400 clamp(0.6rem, 3.8cqw, 0.8rem) var(--font-text);
   opacity: 0.6;
 }
 
@@ -78,20 +78,20 @@
 .song {
   display: none;
   margin: 0 0 0.6em;
-  font: 600 clamp(0.7rem, 5cqw, 1.1rem) var(--font-serif);
+  font: 600 clamp(0.7rem, 5cqw, 1.1rem) var(--font-title);
 }
 
 .spec {
   margin: 0;
-  font: 400 clamp(0.38rem, 2.7cqw, 0.6rem) var(--font-type);
+  font: 400 clamp(0.38rem, 2.7cqw, 0.6rem) var(--font-text);
   text-transform: uppercase;
   opacity: 0.55;
 }
 
 .title {
   margin: 0;
-  font: 600 0.78rem var(--font-sans);
-  color: var(--olive-900);
+  font: 600 0.78rem var(--font-text);
+  color: var(--ink);
 }
 
 .meta {
@@ -100,7 +100,7 @@
   color: var(--muted);
 }
 .meta em {
-  font-family: var(--font-serif);
+  font-family: var(--font-text);
 }
 
 .card:hover .slip,
@@ -120,6 +120,6 @@
     display: block;
   }
   .title {
-    font: 700 1.2rem var(--font-serif);
+    font: 700 1.2rem var(--font-title);
   }
 }

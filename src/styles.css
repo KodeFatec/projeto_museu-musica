@@ -6,22 +6,32 @@
 }
 
 :root {
+  /* ---- Dourado / bege (base #c59a45 e subtons) ---- */
   --bg: #f8f5ee;
   --creme-50: #fdfbf7;
   --creme-200: #f4efe6;
   --parchment: #faf7f0;
   --parchment-100: #fbf9f5;
+  --gold-100: #f6ecd6;
+  --gold-200: #efdcae;
   --gold-300: #e5c07b;
   --gold-500: #c59a45;
   --gold-600: #a97e2c;
   --gold-700: #8a631e;
-  --olive-900: #1c241d;
+
+  /* ---- Azul (base #0927a9 e subtons) ---- */
+  --blue-100: #e4e9fa;
+  --blue-300: #5f78d8;
+  --blue-500: #0927a9;
+  --blue-600: #071f87;
+  --blue-900: #04134f;
+
+  --ink: #1c241d;
   --muted: #786e61;
-  --font-serif: 'Cormorant Garamond', Georgia, serif;
-  --font-display: 'Cinzel', serif;
-  --font-sans: 'Montserrat', sans-serif;
-  --font-type: 'Courier Prime', Courier, monospace;
-  --font-script: 'Alex Brush', cursive;
+
+  /* ---- Tipografia: Roboto (texto) e Roboto Condensed (títulos) ---- */
+  --font-text: 'Roboto', system-ui, sans-serif;
+  --font-title: 'Roboto Condensed', 'Roboto', system-ui, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -33,7 +43,7 @@ body {
   min-height: 100vh;
   background: var(--bg) radial-gradient(circle at 50% 0%, rgba(229, 192, 123, 0.08) 0%, transparent 70%) no-repeat;
   color: #26211c;
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   -webkit-font-smoothing: antialiased;
 }
 

@@ -12,6 +12,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
 })
 export class VinylCardComponent {
   readonly track = input.required<Track>();
+  readonly gold = input(false);
   protected readonly label = computed(() => vinylLabelOf(this.track()));
   protected readonly artists = computed(() => artistLine(this.track()));
 }

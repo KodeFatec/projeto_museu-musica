@@ -67,6 +67,8 @@ export const musicas: MusicaDto[] = [
   musica(11, '"Heroes"', 1, 1977, '00:06:07'),
   musica(12, 'Feeling Good', 7, 1965, '00:02:57'),
   musica(13, 'Águas de Março', 4, 1974, '00:03:30'),
+  musica(14, 'Vogue', 5, 1990, '00:05:17'),
+  musica(15, 'Everybody Hurts', 1, 1992, '00:05:17'),
 ];
 
 const artista = (id_artista: number, nome_artistico: string): ArtistaDto => ({
@@ -99,6 +101,8 @@ export const artistas: ArtistaDto[] = [
   'Moraes Moreira',
   'Paulinho Boca de Cantor',
   'Dadi Carvalho',
+  'Madonna',
+  'R.E.M.',
 ].map((nome, i) => artista(i + 1, nome));
 
 const link = (
@@ -128,6 +132,8 @@ export const musicaArtista: MusicaArtistaDto[] = [
   link(12, 13, 'Voz e piano'),
   link(13, 14, 'Voz'),
   link(13, 15, 'Piano e voz'),
+  link(14, 20, 'Voz'),
+  link(15, 21, 'Banda'),
 ];
 
 const trecho = (id_trecho: number, inicio: string, fim: string, texto: string): LetraTrechoDto => ({
@@ -228,6 +234,7 @@ const addPlays = (
   }
 };
 addPlays(1, 9, '2026-09-10');
+addPlays(14, 9, '2026-09-10');
 addPlays(2, 7, '2026-09-12');
 addPlays(3, 6, '2026-09-14');
 addPlays(4, 4, '2026-09-16');

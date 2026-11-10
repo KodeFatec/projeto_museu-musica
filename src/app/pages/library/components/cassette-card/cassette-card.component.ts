@@ -12,6 +12,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
 })
 export class CassetteCardComponent {
   readonly track = input.required<Track>();
+  readonly gold = input(false);
   protected readonly spec = computed(() => cassetteOf(this.track()));
   protected readonly artists = computed(() => artistLine(this.track()));
 }

@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { CassetteCardComponent } from './components/cassette-card/cassette-card.component';
+import { CdCardComponent } from './components/cd-card/cd-card.component';
 import { LibrarySectionComponent } from './components/library-section/library-section.component';
 import { TrackCardComponent } from './components/track-card/track-card.component';
 import { VinylCardComponent } from './components/vinyl-card/vinyl-card.component';
@@ -13,7 +14,7 @@ import { LibraryComponent } from './library.component';
 @NgModule({
   declarations: [
     LibraryComponent, LibrarySectionComponent, TrackCardComponent,
-    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent,
+    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent, CdCardComponent,
   ],
   imports: [CommonModule, SharedModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
 })

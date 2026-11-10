@@ -19,8 +19,8 @@
 
   .output { display: flex; align-items: center; gap: 0.6rem; min-width: 0; color: #404040; }
   .output svg { width: 1rem; flex: none; color: var(--gold-700); }
-  .output__name { font: 700 0.78rem var(--font-serif); color: #262626; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .chip { padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid #d4d4d4; background: #e5e5e5; font: 400 0.62rem var(--font-type); color: #404040; white-space: nowrap; }
+  .output__name { font: 700 0.78rem var(--font-title); color: #262626; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip { padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid #d4d4d4; background: #e5e5e5; font: 400 0.62rem var(--font-text); color: #404040; white-space: nowrap; }
 }
 
 @media (min-width: 1024px) {

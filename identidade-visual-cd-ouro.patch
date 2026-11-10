@@ -1,0 +1,1761 @@
+diff --git a/README.md b/README.md
+index 96af125..f072832 100644
+--- a/README.md
++++ b/README.md
+@@ -32,7 +32,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ | Na tela | Tabela.coluna |
+ |---|---|
+ | Título | musica.titulo |
+-| Vinil (<= 1979) ou K7 (>= 1980) | musica.ano_gravacao (sem ano = vinil) |
++| Vinil (<= 1979), K7 (1980–1989) ou CD (>= 1990) | musica.ano_gravacao (sem ano = vinil) |
+ | Duração, barra de progresso | musica.duracao |
+ | Gênero (selo, eyebrow, badges) | genero_musical.nome via musica.id_genero |
+ | Artistas ao lado do título | artista.nome_artistico via musica_artista (2 primeiros) |
+@@ -45,10 +45,14 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ | Partitura (título, origem, estado, autor, ano, arquivo) | partitura + item_acervo |
+ | Curtidas / coração | musica_favorita |
+ | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
++| Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
+ | Nome e função no menu | usuario.nome + perfil_usuario.nome |
+ | QR Code | link /tocando/:id da própria aplicação |
+ 
+-Cores do vinil/fita não existem no banco: vêm de uma paleta escolhida pelo id da música.
++## Identidade visual
++Cores: azul `#0927a9` (poucos destaques) e dourado/bege `#c59a45` + subtons. Fontes: Roboto (texto) e Roboto Condensed (títulos). Tokens em `src/styles.css`.
++
++Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo id da música.
+ 
+ ## Rotas da API
+ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
+diff --git a/src/app/core/models/media.model.ts b/src/app/core/models/media.model.ts
+index 381ed72..942b964 100644
+--- a/src/app/core/models/media.model.ts
++++ b/src/app/core/models/media.model.ts
+@@ -1,4 +1,4 @@
+-export type MediaFormat = 'vinyl' | 'cassette';
++export type MediaFormat = 'vinyl' | 'cassette' | 'cd';
+ 
+ /** Selo central do vinil (todo o conteúdo é derivado dos campos da música). */
+ export interface VinylLabel {
+diff --git a/src/app/core/services/library.service.ts b/src/app/core/services/library.service.ts
+index 1b9ad46..d4f64c6 100644
+--- a/src/app/core/services/library.service.ts
++++ b/src/app/core/services/library.service.ts
+@@ -8,7 +8,10 @@ import { formatByYear } from '../utils/media-format';
+ import { parseTime } from '../utils/time';
+ import { CatalogService, LoadStatus } from './catalog.service';
+ 
+-export type FormatFilter = 'all' | 'vinyl' | 'cassette';
++export type FormatFilter = 'all' | 'vinyl' | 'cassette' | 'cd';
++
++/** Quantas músicas entram em "Mais Ouvidas" — todas elas recebem o disco de ouro. */
++const GOLD_TOP = 5;
+ 
+ const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+ 
+@@ -42,7 +45,10 @@ export class LibraryService {
+     return this.tracksOf([...new Set(ids)]);
+   });
+ 
+-  readonly mostPlayed = computed(() => this.visible(this.mostPlayedAll()).slice(0, 5));
++  /** Ids das músicas mais escutadas (disco de ouro). */
++  readonly goldIds = computed(() => new Set(this.mostPlayedAll().slice(0, GOLD_TOP).map((t) => t.id)));
++
++  readonly mostPlayed = computed(() => this.visible(this.mostPlayedAll()).slice(0, GOLD_TOP));
+   readonly recentlyPlayed = computed(() => this.visible(this.recentAll()).slice(0, 4));
+   readonly liked = computed(() => this.visible(this.likedAll()).slice(0, 4));
+ 
+@@ -62,6 +68,10 @@ export class LibraryService {
+     return this.load();
+   }
+ 
++  isGold(songId: number): boolean {
++    return this.goldIds().has(songId);
++  }
++
+   isLiked(songId: number): boolean {
+     return this.likedIds().has(songId);
+   }
+diff --git a/src/app/core/utils/media-format.ts b/src/app/core/utils/media-format.ts
+index 88103cb..4605d82 100644
+--- a/src/app/core/utils/media-format.ts
++++ b/src/app/core/utils/media-format.ts
+@@ -3,11 +3,13 @@ import { Track } from '../models/track.model';
+ import { formatClock } from './time';
+ import { artistLine } from './track-presenter';
+ 
+-/** Até este ano a faixa aparece em vinil; a partir de 1980, em fita K7. Sem ano = acervo antigo (vinil). */
++/** Até 1979 a faixa aparece em vinil; de 1980 a 1989, em fita K7; a partir de 1990, em CD. Sem ano = acervo antigo (vinil). */
+ export const VINYL_LIMIT_YEAR = 1979;
++export const CASSETTE_LIMIT_YEAR = 1989;
+ 
+ export function formatByYear(year: number | null): MediaFormat {
+-  return year === null || year <= VINYL_LIMIT_YEAR ? 'vinyl' : 'cassette';
++  if (year === null || year <= VINYL_LIMIT_YEAR) return 'vinyl';
++  return year <= CASSETTE_LIMIT_YEAR ? 'cassette' : 'cd';
+ }
+ 
+ // O banco não guarda cores. Elas vêm de uma paleta, escolhida pelo id da música (sempre a mesma por faixa).
+@@ -24,6 +26,7 @@ const paletteOf = (track: Track) => PALETTES[track.id % PALETTES.length];
+ 
+ const shorten = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+ 
++/** Selo impresso (vinil e CD usam o mesmo: cor, gênero, título e ano). */
+ export function vinylLabelOf(track: Track): VinylLabel {
+   const p = paletteOf(track);
+   return {
+diff --git a/src/app/layout/menu/menu.component.css b/src/app/layout/menu/menu.component.css
+index ff47adf..fcf7939 100644
+--- a/src/app/layout/menu/menu.component.css
++++ b/src/app/layout/menu/menu.component.css
+@@ -41,7 +41,7 @@
+   border: 1px solid var(--gold-500);
+   background: var(--creme-200);
+   color: var(--gold-600);
+-  font: 700 1rem var(--font-display);
++  font: 700 1rem var(--font-title);
+   transition: transform 0.3s;
+ }
+ 
+@@ -55,7 +55,7 @@
+ }
+ 
+ .brand__name {
+-  font: 600 0.82rem var(--font-display);
++  font: 600 0.82rem var(--font-title);
+   letter-spacing: 0.2em;
+   text-transform: uppercase;
+   color: #26211c;
+@@ -67,7 +67,7 @@
+ }
+ 
+ .brand__tag {
+-  font: 500 0.6rem var(--font-sans);
++  font: 500 0.6rem var(--font-text);
+   letter-spacing: 0.28em;
+   text-transform: uppercase;
+   color: #8c8070;
+@@ -96,7 +96,7 @@
+   border-radius: 999px;
+   background: #f2ecdf;
+   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+-  font: 400 0.75rem var(--font-sans);
++  font: 400 0.75rem var(--font-text);
+   color: #332d26;
+ }
+ .search input:focus {
+@@ -113,7 +113,7 @@
+   align-items: center;
+   gap: 0.4rem;
+   pointer-events: none;
+-  font: 600 0.62rem var(--font-display);
++  font: 600 0.62rem var(--font-title);
+   letter-spacing: 0.1em;
+   color: #b1a594;
+ }
+@@ -136,7 +136,7 @@
+ .links a {
+   padding-bottom: 0.15rem;
+   border-bottom: 2px solid transparent;
+-  font: 500 0.72rem var(--font-sans);
++  font: 500 0.72rem var(--font-text);
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   text-decoration: none;
+@@ -168,12 +168,12 @@
+ }
+ 
+ .profile__name {
+-  font: 600 0.75rem var(--font-sans);
++  font: 600 0.75rem var(--font-text);
+   color: #2d2821;
+ }
+ 
+ .profile__role {
+-  font: 500 0.6rem var(--font-sans);
++  font: 500 0.6rem var(--font-text);
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   color: var(--gold-600);
+@@ -187,7 +187,7 @@
+   border-radius: 50%;
+   background: #faf6ee;
+   box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.4);
+-  font: 700 0.72rem var(--font-display);
++  font: 700 0.72rem var(--font-title);
+   color: #6f5b39;
+ }
+ 
+@@ -256,8 +256,8 @@
+   border: 0;
+   background: none;
+   cursor: pointer;
+-  color: rgba(38, 51, 40, 0.6);
+-  font: 500 clamp(0.5rem, 2.6vw, 0.62rem) var(--font-sans);
++  color: rgba(38, 33, 28, 0.6);
++  font: 500 clamp(0.5rem, 2.6vw, 0.62rem) var(--font-text);
+ }
+ .tab__label {
+   max-width: 100%;
+@@ -273,7 +273,7 @@
+   transition: opacity 0.2s, transform 0.3s;
+ }
+ .tab--active {
+-  color: var(--olive-900);
++  color: var(--blue-500);
+   font-weight: 700;
+ }
+ .tab--active .tab__icon {
+@@ -291,7 +291,7 @@
+   display: grid;
+   place-items: center;
+   border-radius: 50%;
+-  background: var(--olive-900);
++  background: var(--blue-500);
+   color: var(--gold-300);
+   box-shadow: 0 0 0 6px var(--bg);
+   pointer-events: none;
+diff --git a/src/app/layout/mini-player/mini-player.component.css b/src/app/layout/mini-player/mini-player.component.css
+index 2ce59a4..1828552 100644
+--- a/src/app/layout/mini-player/mini-player.component.css
++++ b/src/app/layout/mini-player/mini-player.component.css
+@@ -16,7 +16,7 @@
+   padding: 0.6rem 0.9rem;
+   border-radius: 1rem;
+   border: 1px solid rgba(255, 255, 255, 0.1);
+-  background: rgba(28, 36, 29, 0.95);
++  background: rgba(9, 39, 169, 0.96);
+   backdrop-filter: blur(10px);
+   color: var(--creme-50);
+   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
+@@ -43,7 +43,7 @@
+ 
+ .title {
+   margin: 0;
+-  font: 500 0.75rem var(--font-sans);
++  font: 500 0.75rem var(--font-text);
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -51,7 +51,7 @@
+ 
+ .sub {
+   margin: 0;
+-  font: italic 400 0.7rem var(--font-serif);
++  font: italic 400 0.7rem var(--font-text);
+   opacity: 0.6;
+   overflow: hidden;
+   text-overflow: ellipsis;
+@@ -99,7 +99,7 @@ button {
+   height: 1.9rem;
+   border-radius: 50%;
+   background: var(--creme-50);
+-  color: var(--olive-900);
++  color: var(--blue-500);
+   transition: transform 0.15s;
+ }
+ .toggle:active {
+@@ -129,10 +129,10 @@ button {
+     flex: 0 0 15rem;
+   }
+   .title {
+-    font: 600 1.1rem var(--font-serif);
++    font: 600 1.1rem var(--font-title);
+   }
+   .sub {
+-    font: 400 0.75rem var(--font-sans);
++    font: 400 0.75rem var(--font-text);
+     opacity: 0.7;
+   }
+   .controls {
+@@ -156,7 +156,7 @@ button {
+     display: flex;
+     align-items: center;
+     gap: 0.75rem;
+-    font: 400 0.65rem var(--font-type);
++    font: 400 0.65rem var(--font-text);
+     color: #7a7061;
+   }
+   .progress input {
+diff --git a/src/app/layout/mini-player/mini-player.component.html b/src/app/layout/mini-player/mini-player.component.html
+index d2a5136..6ad0d03 100644
+--- a/src/app/layout/mini-player/mini-player.component.html
++++ b/src/app/layout/mini-player/mini-player.component.html
+@@ -1,10 +1,16 @@
+ @if (track(); as t) {
+   <aside class="player" aria-label="Player">
+-    <div class="thumb" [class.thumb--tape]="!isVinyl()" [class.paused]="!player.playing()">
+-      @if (isVinyl()) {
+-        <app-vinyl-disc [label]="label()!" [spinning]="player.playing()" />
+-      } @else {
+-        <app-cassette-tape [spec]="spec()!" [spinning]="player.playing()" />
++    <div class="thumb" [class.thumb--tape]="format() === 'cassette'" [class.paused]="!player.playing()">
++      @switch (format()) {
++        @case ('vinyl') {
++          <app-vinyl-disc [label]="label()!" [spinning]="player.playing()" [gold]="gold()" />
++        }
++        @case ('cd') {
++          <app-cd-disc [label]="label()!" [spinning]="player.playing()" [gold]="gold()" />
++        }
++        @default {
++          <app-cassette-tape [spec]="spec()!" [spinning]="player.playing()" [gold]="gold()" />
++        }
+       }
+     </div>
+ 
+diff --git a/src/app/layout/mini-player/mini-player.component.ts b/src/app/layout/mini-player/mini-player.component.ts
+index c84c50b..8fbb6b2 100644
+--- a/src/app/layout/mini-player/mini-player.component.ts
++++ b/src/app/layout/mini-player/mini-player.component.ts
+@@ -19,7 +19,8 @@ export class MiniPlayerComponent {
+   private readonly library = inject(LibraryService);
+   private readonly router = inject(Router);
+   protected readonly track = this.player.track;
+-  protected readonly isVinyl = computed(() => formatByYear(this.track()?.year ?? null) === 'vinyl');
++  protected readonly format = computed(() => formatByYear(this.track()?.year ?? null));
++  protected readonly gold = computed(() => (this.track() ? this.library.isGold(this.track()!.id) : false));
+   protected readonly label = computed(() => (this.track() ? vinylLabelOf(this.track()!) : null));
+   protected readonly spec = computed(() => (this.track() ? cassetteOf(this.track()!) : null));
+   protected readonly artists = computed(() => (this.track() ? artistLine(this.track()!) : ''));
+diff --git a/src/app/pages/coming-soon/coming-soon.component.ts b/src/app/pages/coming-soon/coming-soon.component.ts
+index d04f8f9..4d0d922 100644
+--- a/src/app/pages/coming-soon/coming-soon.component.ts
++++ b/src/app/pages/coming-soon/coming-soon.component.ts
+@@ -15,8 +15,8 @@ import { ActivatedRoute } from '@angular/router';
+   styles: `
+     :host { display: block; flex: none; }
+     .soon { padding: 3rem 1.5rem 10rem; text-align: center; }
+-    h1 { margin: 0; font: 600 2rem var(--font-serif); color: var(--olive-900); }
+-    p { margin: 0.5rem 0 0; font: italic 400 1.1rem var(--font-serif); color: var(--muted); }
++    h1 { margin: 0; font: 600 2rem var(--font-title); color: var(--ink); }
++    p { margin: 0.5rem 0 0; font: italic 400 1.1rem var(--font-title); color: var(--muted); }
+   `,
+ })
+ export class ComingSoonComponent {
+diff --git a/src/app/pages/library/components/cassette-card/cassette-card.component.css b/src/app/pages/library/components/cassette-card/cassette-card.component.css
+index 437411b..8d4342d 100644
+--- a/src/app/pages/library/components/cassette-card/cassette-card.component.css
++++ b/src/app/pages/library/components/cassette-card/cassette-card.component.css
+@@ -13,8 +13,8 @@
+ 
+ .title {
+   margin: 0.55rem 0 0;
+-  font: 600 0.78rem/1.25 var(--font-sans);
+-  color: var(--olive-900);
++  font: 600 0.78rem/1.25 var(--font-text);
++  color: var(--ink);
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -30,9 +30,9 @@
+   font-size: 0.72rem;
+   color: var(--muted);
+ }
+-.meta em { font-family: var(--font-serif); font-size: 0.85rem; }
++.meta em { font-family: var(--font-text); font-size: 0.85rem; }
+ .meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+-.badge { display: none; padding: 0.1rem 0.4rem; border-radius: 4px; background: #dfd6c5; color: #5d5447; font: 400 0.62rem var(--font-type); white-space: nowrap; }
++.badge { display: none; padding: 0.1rem 0.4rem; border-radius: 4px; background: #dfd6c5; color: #5d5447; font: 400 0.62rem var(--font-text); white-space: nowrap; }
+ 
+ /* Hover: a fita levanta um pouco */
+ .card:hover .tape,
+@@ -42,6 +42,6 @@
+   .card { padding: 0.75rem; background: rgba(237, 230, 216, 0.6); border-color: #decdb7; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+   .card:hover, .card:focus-visible { background: #eae2d2; box-shadow: 0 8px 20px rgba(60, 45, 20, 0.12); }
+   .card:hover .title { color: var(--gold-600); }
+-  .title { margin-top: 0.8rem; font: 700 1.15rem var(--font-serif); }
++  .title { margin-top: 0.8rem; font: 700 1.15rem var(--font-title); }
+   .badge { display: inline-block; }
+ }
+diff --git a/src/app/pages/library/components/cassette-card/cassette-card.component.html b/src/app/pages/library/components/cassette-card/cassette-card.component.html
+index 2af01ab..d4fd6d0 100644
+--- a/src/app/pages/library/components/cassette-card/cassette-card.component.html
++++ b/src/app/pages/library/components/cassette-card/cassette-card.component.html
+@@ -1,5 +1,5 @@
+ <article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
+-  <app-cassette-tape class="tape" [spec]="spec()" />
++  <app-cassette-tape class="tape" [spec]="spec()" [gold]="gold()" />
+   <h3 class="title">{{ track().title }}</h3>
+   <div class="meta">
+     <span>{{ artists() }}@if (track().year) { • <em>{{ track().year }}</em>}</span>
+diff --git a/src/app/pages/library/components/cassette-card/cassette-card.component.ts b/src/app/pages/library/components/cassette-card/cassette-card.component.ts
+index bfa4844..308922e 100644
+--- a/src/app/pages/library/components/cassette-card/cassette-card.component.ts
++++ b/src/app/pages/library/components/cassette-card/cassette-card.component.ts
+@@ -12,6 +12,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
+ })
+ export class CassetteCardComponent {
+   readonly track = input.required<Track>();
++  readonly gold = input(false);
+   protected readonly spec = computed(() => cassetteOf(this.track()));
+   protected readonly artists = computed(() => artistLine(this.track()));
+ }
+diff --git a/src/app/pages/library/components/cd-card/cd-card.component.css b/src/app/pages/library/components/cd-card/cd-card.component.css
+new file mode 100644
+index 0000000..12a9c8e
+--- /dev/null
++++ b/src/app/pages/library/components/cd-card/cd-card.component.css
+@@ -0,0 +1,124 @@
++:host {
++  display: block;
++}
++
++.card {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  cursor: pointer;
++  outline: none;
++}
++
++.stage {
++  position: relative;
++  width: 100%;
++  max-width: 13rem;
++  aspect-ratio: 1;
++  margin-bottom: 0.7rem;
++  transition: transform 0.5s ease-out;
++}
++
++.shadow {
++  position: absolute;
++  inset: 8%;
++  border-radius: 50%;
++  background: rgba(0, 0, 0, 0.4);
++  filter: blur(16px);
++  transition: filter 0.5s;
++}
++
++.disc {
++  position: relative;
++  z-index: 1;
++  transition: transform 0.7s ease-out;
++}
++
++.play {
++  position: absolute;
++  inset: 0;
++  margin: auto;
++  z-index: 3;
++  width: 3rem;
++  height: 3rem;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  color: #fff;
++  background: rgba(197, 154, 69, 0.92);
++  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
++  opacity: 0;
++  transform: scale(0.75);
++  transition: opacity 0.3s, transform 0.3s;
++}
++.play svg {
++  width: 1.5rem;
++  margin-left: 0.1rem;
++}
++
++.title {
++  margin: 0;
++  font: 700 1.05rem/1.2 var(--font-title);
++  color: #1e1915;
++  transition: color 0.3s;
++}
++
++.meta {
++  margin: 0.15rem 0 0;
++  font-size: 0.72rem;
++  color: var(--muted);
++}
++.meta em {
++  font-family: var(--font-text);
++  font-size: 0.85rem;
++}
++
++.label-line {
++  display: none;
++  margin-top: 0.25rem;
++  font: 500 0.62rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #9e907b;
++}
++
++.card:hover .stage,
++.card:focus-within .stage {
++  transform: scale(1.05);
++}
++.card:hover .shadow,
++.card:focus-within .shadow {
++  filter: blur(26px);
++}
++.card:hover .disc,
++.card:focus-within .disc {
++  transform: rotate(45deg);
++}
++.card:hover .play,
++.card:focus-within .play {
++  opacity: 1;
++  transform: scale(1);
++}
++.card:hover .title,
++.card:focus-within .title {
++  color: var(--gold-600);
++}
++
++@media (min-width: 1024px) {
++  .card {
++    align-items: center;
++    text-align: center;
++  }
++  .stage {
++    margin-bottom: 0.9rem;
++  }
++  .title {
++    font-size: 1.35rem;
++  }
++  .meta {
++    font-size: 0.8rem;
++  }
++  .label-line {
++    display: block;
++  }
++}
+diff --git a/src/app/pages/library/components/cd-card/cd-card.component.html b/src/app/pages/library/components/cd-card/cd-card.component.html
+new file mode 100644
+index 0000000..31560c2
+--- /dev/null
++++ b/src/app/pages/library/components/cd-card/cd-card.component.html
+@@ -0,0 +1,14 @@
++<article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
++  <div class="stage">
++    <div class="shadow"></div>
++    <app-cd-disc class="disc" [label]="label()" [gold]="gold()" />
++    <span class="play" aria-hidden="true">
++      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
++    </span>
++  </div>
++  <h3 class="title">{{ track().title }}</h3>
++  <p class="meta">{{ artists() }}@if (track().year) { • <em>{{ track().year }}</em>}</p>
++  @if (track().genre) {
++    <span class="label-line">{{ track().genre }}</span>
++  }
++</article>
+diff --git a/src/app/pages/library/components/cd-card/cd-card.component.ts b/src/app/pages/library/components/cd-card/cd-card.component.ts
+new file mode 100644
+index 0000000..7b98540
+--- /dev/null
++++ b/src/app/pages/library/components/cd-card/cd-card.component.ts
+@@ -0,0 +1,19 @@
++import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
++import { Track } from '../../../../core/models/track.model';
++import { vinylLabelOf } from '../../../../core/utils/media-format';
++import { artistLine } from '../../../../core/utils/track-presenter';
++
++/** Card de CD (músicas de 1990 em diante). */
++@Component({
++  selector: 'app-cd-card',
++  standalone: false,
++  templateUrl: './cd-card.component.html',
++  styleUrl: './cd-card.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class CdCardComponent {
++  readonly track = input.required<Track>();
++  readonly gold = input(false);
++  protected readonly label = computed(() => vinylLabelOf(this.track()));
++  protected readonly artists = computed(() => artistLine(this.track()));
++}
+diff --git a/src/app/pages/library/components/library-section/library-section.component.css b/src/app/pages/library/components/library-section/library-section.component.css
+index d9ad7fe..be59cd4 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.css
++++ b/src/app/pages/library/components/library-section/library-section.component.css
+@@ -28,8 +28,8 @@
+   background: var(--gold-500);
+   flex: none;
+ }
+-.dot--olive {
+-  background: #344537;
++.dot--blue {
++  background: var(--blue-500);
+ }
+ 
+ .heart {
+@@ -43,7 +43,7 @@
+ 
+ .title {
+   margin: 0;
+-  font: 600 0.8rem var(--font-sans);
++  font: 600 0.8rem var(--font-text);
+   letter-spacing: 0.12em;
+   text-transform: uppercase;
+   color: #3e362c;
+@@ -51,7 +51,7 @@
+ 
+ .subtitle {
+   display: none;
+-  font: italic 400 0.95rem var(--font-serif);
++  font: italic 400 0.95rem var(--font-text);
+   color: #a09584;
+ }
+ 
+@@ -62,7 +62,7 @@
+   cursor: pointer;
+   flex: none;
+   white-space: nowrap;
+-  font: 500 0.7rem var(--font-sans);
++  font: 500 0.7rem var(--font-text);
+   color: var(--gold-600);
+ }
+ .action:hover {
+diff --git a/src/app/pages/library/components/library-section/library-section.component.html b/src/app/pages/library/components/library-section/library-section.component.html
+index 2854065..e908279 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.html
++++ b/src/app/pages/library/components/library-section/library-section.component.html
+@@ -6,7 +6,7 @@
+           <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+         </svg>
+       } @else {
+-        <span class="dot" [class.dot--olive]="accent() === 'olive'"></span>
++        <span class="dot" [class.dot--blue]="accent() === 'blue'"></span>
+       }
+       <h2 class="title">
+         <span class="long">{{ title() }}</span>
+diff --git a/src/app/pages/library/components/library-section/library-section.component.ts b/src/app/pages/library/components/library-section/library-section.component.ts
+index 22cd326..8949412 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.ts
++++ b/src/app/pages/library/components/library-section/library-section.component.ts
+@@ -14,7 +14,7 @@ export class LibrarySectionComponent {
+   readonly subtitle = input<string>();
+   readonly action = input<string>();
+   readonly shortAction = input<string>();
+-  readonly accent = input<'gold' | 'olive' | 'heart'>('gold');
++  readonly accent = input<'gold' | 'blue' | 'heart'>('gold');
+   /** Largura mínima de cada item na grade (desktop). */
+   readonly minItem = input('13rem');
+   /** Largura de cada item no carrossel (mobile). */
+diff --git a/src/app/pages/library/components/track-card/track-card.component.ts b/src/app/pages/library/components/track-card/track-card.component.ts
+index 68ddeac..d43c2be 100644
+--- a/src/app/pages/library/components/track-card/track-card.component.ts
++++ b/src/app/pages/library/components/track-card/track-card.component.ts
+@@ -1,10 +1,12 @@
+-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
++import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+ import { Track } from '../../../../core/models/track.model';
++import { LibraryService } from '../../../../core/services/library.service';
+ import { formatByYear } from '../../../../core/utils/media-format';
+ 
+ /**
+  * Único ponto onde a regra "ano -> formato" decide o card:
+- * até 1979 = vinil, a partir de 1980 = fita K7 (ver core/utils/media-format.ts).
++ * até 1979 = vinil, 1980–1989 = fita K7, a partir de 1990 = CD (ver core/utils/media-format.ts).
++ * As músicas mais escutadas ganham o disco de ouro.
+  */
+ @Component({
+   selector: 'app-track-card',
+@@ -17,20 +19,40 @@ import { formatByYear } from '../../../../core/utils/media-format';
+         @if (variant() === 'sleeve') {
+           <app-vinyl-sleeve-card [track]="track()" />
+         } @else {
+-          <app-vinyl-card [track]="track()" />
++          <app-vinyl-card [track]="track()" [gold]="gold()" />
+         }
+       }
+       @case ('cassette') {
+-        <app-cassette-card [track]="track()" />
++        <app-cassette-card [track]="track()" [gold]="gold()" />
+       }
++      @case ('cd') {
++        <app-cd-card [track]="track()" [gold]="gold()" />
++      }
++    }
++    @if (gold()) {
++      <span class="seal" title="Disco de Ouro" role="img" aria-label="Disco de Ouro">
++        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2.8 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 16.8l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>
++      </span>
++    }
++  `,
++  styles: `
++    :host { display: block; position: relative; }
++    .seal {
++      position: absolute; top: 0.3rem; right: 0.3rem; z-index: 4;
++      width: 1.7rem; height: 1.7rem; display: grid; place-items: center; border-radius: 50%;
++      color: var(--gold-700); border: 1.5px solid var(--gold-100);
++      background: linear-gradient(135deg, var(--gold-200), var(--gold-500) 55%, var(--gold-600));
++      box-shadow: 0 3px 8px rgba(138, 99, 30, 0.4); pointer-events: none;
+     }
++    .seal svg { width: 0.95rem; }
+   `,
+-  styles: ':host { display: block; }',
+ })
+ export class TrackCardComponent {
+   readonly track = input.required<Track>();
+   /** 'sleeve' mostra o vinil dentro da luva (seção Curtidas). */
+   readonly variant = input<'default' | 'sleeve'>('default');
+   readonly play = output<Track>();
++  private readonly library = inject(LibraryService);
+   protected readonly format = computed(() => formatByYear(this.track().year));
++  protected readonly gold = computed(() => this.library.isGold(this.track().id));
+ }
+diff --git a/src/app/pages/library/components/vinyl-card/vinyl-card.component.css b/src/app/pages/library/components/vinyl-card/vinyl-card.component.css
+index 4298226..12a9c8e 100644
+--- a/src/app/pages/library/components/vinyl-card/vinyl-card.component.css
++++ b/src/app/pages/library/components/vinyl-card/vinyl-card.component.css
+@@ -58,7 +58,7 @@
+ 
+ .title {
+   margin: 0;
+-  font: 700 1.05rem/1.2 var(--font-serif);
++  font: 700 1.05rem/1.2 var(--font-title);
+   color: #1e1915;
+   transition: color 0.3s;
+ }
+@@ -69,14 +69,14 @@
+   color: var(--muted);
+ }
+ .meta em {
+-  font-family: var(--font-serif);
++  font-family: var(--font-text);
+   font-size: 0.85rem;
+ }
+ 
+ .label-line {
+   display: none;
+   margin-top: 0.25rem;
+-  font: 500 0.62rem var(--font-type);
++  font: 500 0.62rem var(--font-text);
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   color: #9e907b;
+diff --git a/src/app/pages/library/components/vinyl-card/vinyl-card.component.html b/src/app/pages/library/components/vinyl-card/vinyl-card.component.html
+index ea7d4f7..af98ef7 100644
+--- a/src/app/pages/library/components/vinyl-card/vinyl-card.component.html
++++ b/src/app/pages/library/components/vinyl-card/vinyl-card.component.html
+@@ -1,7 +1,7 @@
+ <article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
+   <div class="stage">
+     <div class="shadow"></div>
+-    <app-vinyl-disc class="disc" [label]="label()" />
++    <app-vinyl-disc class="disc" [label]="label()" [gold]="gold()" />
+     <span class="play" aria-hidden="true">
+       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+     </span>
+diff --git a/src/app/pages/library/components/vinyl-card/vinyl-card.component.ts b/src/app/pages/library/components/vinyl-card/vinyl-card.component.ts
+index 927f5f3..7b27e17 100644
+--- a/src/app/pages/library/components/vinyl-card/vinyl-card.component.ts
++++ b/src/app/pages/library/components/vinyl-card/vinyl-card.component.ts
+@@ -12,6 +12,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
+ })
+ export class VinylCardComponent {
+   readonly track = input.required<Track>();
++  readonly gold = input(false);
+   protected readonly label = computed(() => vinylLabelOf(this.track()));
+   protected readonly artists = computed(() => artistLine(this.track()));
+ }
+diff --git a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.css b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.css
+index 97cb168..0864bbe 100644
+--- a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.css
++++ b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.css
+@@ -49,7 +49,7 @@
+ 
+ .record {
+   margin: 0;
+-  font: 600 clamp(0.4rem, 3.3cqw, 0.65rem) var(--font-sans);
++  font: 600 clamp(0.4rem, 3.3cqw, 0.65rem) var(--font-text);
+   letter-spacing: 0.14em;
+   text-transform: uppercase;
+   color: var(--gold-300);
+@@ -57,7 +57,7 @@
+ 
+ .headline {
+   margin: 0.2em 0 0;
+-  font: 600 clamp(0.7rem, 7.5cqw, 1.7rem)/1.1 var(--font-serif);
++  font: 600 clamp(0.7rem, 7.5cqw, 1.7rem)/1.1 var(--font-title);
+ }
+ 
+ .note {
+@@ -67,7 +67,7 @@
+   overflow: hidden;
+   display: none;
+   margin: 0.3em 0 0;
+-  font: italic 400 clamp(0.6rem, 3.8cqw, 0.8rem) var(--font-serif);
++  font: italic 400 clamp(0.6rem, 3.8cqw, 0.8rem) var(--font-text);
+   opacity: 0.6;
+ }
+ 
+@@ -78,20 +78,20 @@
+ .song {
+   display: none;
+   margin: 0 0 0.6em;
+-  font: 600 clamp(0.7rem, 5cqw, 1.1rem) var(--font-serif);
++  font: 600 clamp(0.7rem, 5cqw, 1.1rem) var(--font-title);
+ }
+ 
+ .spec {
+   margin: 0;
+-  font: 400 clamp(0.38rem, 2.7cqw, 0.6rem) var(--font-type);
++  font: 400 clamp(0.38rem, 2.7cqw, 0.6rem) var(--font-text);
+   text-transform: uppercase;
+   opacity: 0.55;
+ }
+ 
+ .title {
+   margin: 0;
+-  font: 600 0.78rem var(--font-sans);
+-  color: var(--olive-900);
++  font: 600 0.78rem var(--font-text);
++  color: var(--ink);
+ }
+ 
+ .meta {
+@@ -100,7 +100,7 @@
+   color: var(--muted);
+ }
+ .meta em {
+-  font-family: var(--font-serif);
++  font-family: var(--font-text);
+ }
+ 
+ .card:hover .slip,
+@@ -120,6 +120,6 @@
+     display: block;
+   }
+   .title {
+-    font: 700 1.2rem var(--font-serif);
++    font: 700 1.2rem var(--font-title);
+   }
+ }
+diff --git a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.html b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.html
+index af82437..4440bba 100644
+--- a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.html
++++ b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.html
+@@ -1,6 +1,6 @@
+ <article class="card" tabindex="0" [attr.aria-label]="track().title + ', ' + artists() + (track().year ? ', ' + track().year : '')">
+   <div class="cover">
+-    <app-vinyl-disc class="slip" [label]="label()" />
++    <app-vinyl-disc class="slip" [label]="label()" [gold]="gold()" />
+     <div class="sleeve" [style.background]="color()">
+       <header class="top">
+         <p class="record">{{ track().genre ?? 'Acervo' }}</p>
+diff --git a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.ts b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.ts
+index 7edac6f..fcf9319 100644
+--- a/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.ts
++++ b/src/app/pages/library/components/vinyl-sleeve-card/vinyl-sleeve-card.component.ts
+@@ -13,6 +13,7 @@ import { artistLine } from '../../../../core/utils/track-presenter';
+ })
+ export class VinylSleeveCardComponent {
+   readonly track = input.required<Track>();
++  readonly gold = input(false);
+   // o selo do disco na luva é liso (sem texto), só a cor
+   protected readonly label = computed(() => ({ ...vinylLabelOf(this.track()), lines: [] }));
+   protected readonly color = computed(() => sleeveColorOf(this.track()));
+diff --git a/src/app/pages/library/library.component.css b/src/app/pages/library/library.component.css
+index 457e620..c8d6696 100644
+--- a/src/app/pages/library/library.component.css
++++ b/src/app/pages/library/library.component.css
+@@ -24,7 +24,7 @@
+   grid-column: 1/-1;
+   margin: 0;
+   padding: 1.5rem 0;
+-  font: italic 400 1rem var(--font-serif);
++  font: italic 400 1rem var(--font-text);
+   color: var(--muted);
+ }
+ 
+@@ -43,9 +43,9 @@
+ 
+ h1 {
+   margin: 0;
+-  font: 600 2rem/1.1 var(--font-serif);
++  font: 600 2rem/1.1 var(--font-title);
+   letter-spacing: -0.01em;
+-  color: var(--olive-900);
++  color: var(--ink);
+ }
+ 
+ .back {
+@@ -56,7 +56,7 @@ h1 {
+   border: 0;
+   border-radius: 50%;
+   background: rgba(236, 228, 220, 0.6);
+-  color: var(--olive-900);
++  color: var(--ink);
+   cursor: pointer;
+   transition: transform 0.15s;
+ }
+@@ -77,7 +77,7 @@ h1 {
+   top: 50%;
+   width: 1rem;
+   translate: 0 -50%;
+-  color: rgba(74, 94, 77, 0.7);
++  color: rgba(120, 110, 97, 0.8);
+ }
+ .search input {
+   width: 100%;
+@@ -85,8 +85,8 @@ h1 {
+   border: 1px solid rgba(223, 210, 196, 0.8);
+   border-radius: 999px;
+   background: rgba(239, 233, 224, 0.8);
+-  font: 400 0.75rem var(--font-sans);
+-  color: var(--olive-900);
++  font: 400 0.75rem var(--font-text);
++  color: var(--ink);
+ }
+ .search input:focus {
+   outline: none;
+@@ -99,10 +99,10 @@ h1 {
+   right: 0.9rem;
+   top: 50%;
+   translate: 0 -50%;
+-  font: 600 0.62rem var(--font-sans);
++  font: 600 0.62rem var(--font-text);
+   letter-spacing: 0.1em;
+   text-transform: uppercase;
+-  color: rgba(38, 51, 40, 0.4);
++  color: rgba(38, 33, 28, 0.4);
+   pointer-events: none;
+ }
+ 
+@@ -137,7 +137,7 @@ h1 {
+     align-items: center;
+     gap: 0.5rem;
+     margin: 0 0 0.4rem;
+-    font: 500 0.7rem var(--font-sans);
++    font: 500 0.7rem var(--font-text);
+     letter-spacing: 0.25em;
+     text-transform: uppercase;
+     color: #938776;
+@@ -156,7 +156,7 @@ h1 {
+   .lead {
+     max-width: 42rem;
+     margin: 0.3rem 0 0;
+-    font: italic 400 1.15rem/1.35 var(--font-serif);
++    font: italic 400 1.15rem/1.35 var(--font-text);
+     color: #786e61;
+   }
+   .pills {
+@@ -172,7 +172,7 @@ h1 {
+     border: 0;
+     border-radius: 999px;
+     background: none;
+-    font: 400 0.75rem var(--font-sans);
++    font: 400 0.75rem var(--font-text);
+     color: #6e6454;
+     cursor: pointer;
+     transition: color 0.2s, background 0.2s;
+@@ -188,6 +188,6 @@ h1 {
+   }
+ }
+ 
+-.state { margin: 1rem 1.5rem 1rem 0; font: italic 400 1.05rem var(--font-serif); color: var(--muted); }
+-.state button { margin-top: 0.5rem; padding: 0.4rem 1rem; border: 1px solid var(--gold-500); border-radius: 999px; background: none; font: 500 0.75rem var(--font-sans); color: var(--gold-700); cursor: pointer; }
++.state { margin: 1rem 1.5rem 1rem 0; font: italic 400 1.05rem var(--font-text); color: var(--muted); }
++.state button { margin-top: 0.5rem; padding: 0.4rem 1rem; border: 1px solid var(--gold-500); border-radius: 999px; background: none; font: 500 0.75rem var(--font-text); color: var(--gold-700); cursor: pointer; }
+ .page { flex: none; }
+diff --git a/src/app/pages/library/library.component.html b/src/app/pages/library/library.component.html
+index 5ba86d9..41a626c 100644
+--- a/src/app/pages/library/library.component.html
++++ b/src/app/pages/library/library.component.html
+@@ -86,7 +86,7 @@
+       subtitle="Seu histórico de escuta"
+       action="Histórico Completo →"
+       shortAction="Histórico"
+-      accent="olive"
++      accent="blue"
+       minItem="16rem"
+       mobileItem="9rem"
+     >
+diff --git a/src/app/pages/library/library.component.ts b/src/app/pages/library/library.component.ts
+index fad57df..7edd1b1 100644
+--- a/src/app/pages/library/library.component.ts
++++ b/src/app/pages/library/library.component.ts
+@@ -21,6 +21,7 @@ export class LibraryComponent implements OnInit {
+     { id: 'all', label: 'Todos os Formatos' },
+     { id: 'vinyl', label: 'Vinis (LP/EP)' },
+     { id: 'cassette', label: 'Fitas K7' },
++    { id: 'cd', label: 'CDs' },
+   ];
+ 
+   ngOnInit(): void {
+diff --git a/src/app/pages/library/library.module.ts b/src/app/pages/library/library.module.ts
+index d958f13..8aaf5d0 100644
+--- a/src/app/pages/library/library.module.ts
++++ b/src/app/pages/library/library.module.ts
+@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
+ import { RouterModule } from '@angular/router';
+ import { SharedModule } from '../../shared/shared.module';
+ import { CassetteCardComponent } from './components/cassette-card/cassette-card.component';
++import { CdCardComponent } from './components/cd-card/cd-card.component';
+ import { LibrarySectionComponent } from './components/library-section/library-section.component';
+ import { TrackCardComponent } from './components/track-card/track-card.component';
+ import { VinylCardComponent } from './components/vinyl-card/vinyl-card.component';
+@@ -13,7 +14,7 @@ import { LibraryComponent } from './library.component';
+ @NgModule({
+   declarations: [
+     LibraryComponent, LibrarySectionComponent, TrackCardComponent,
+-    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent,
++    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent, CdCardComponent,
+   ],
+   imports: [CommonModule, SharedModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
+ })
+diff --git a/src/app/pages/now-playing/components/lyrics/lyrics.component.css b/src/app/pages/now-playing/components/lyrics/lyrics.component.css
+index 1f5f7c2..41f40f5 100644
+--- a/src/app/pages/now-playing/components/lyrics/lyrics.component.css
++++ b/src/app/pages/now-playing/components/lyrics/lyrics.component.css
+@@ -2,9 +2,9 @@
+ 
+ .head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(197, 160, 89, 0.25); }
+ .head__title { display: flex; align-items: baseline; gap: 0.5rem; }
+-.script { font: 400 2.4rem/1 var(--font-script); color: var(--gold-700); }
+-.sub { font: 700 0.7rem var(--font-type); letter-spacing: 0.12em; text-transform: uppercase; color: #737373; }
+-.sync { display: none; align-items: center; gap: 0.35rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(197, 154, 69, 0.12); font: 500 0.68rem var(--font-sans); color: #7c5a1c; }
++.script { font: italic 700 2.4rem/1 var(--font-title); color: var(--gold-700); }
++.sub { font: 700 0.7rem var(--font-text); letter-spacing: 0.12em; text-transform: uppercase; color: #737373; }
++.sync { display: none; align-items: center; gap: 0.35rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(197, 154, 69, 0.12); font: 500 0.68rem var(--font-text); color: #7c5a1c; }
+ .sync i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--gold-600); animation: ping 1.6s ease-out infinite; }
+ 
+ .verses { position: relative; flex: 1; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem 0.5rem 1.5rem 0; }
+@@ -13,7 +13,7 @@
+   position: relative;
+   padding-left: 1rem;
+   border-left: 2px solid transparent;
+-  font: 400 1.35rem/1.55 var(--font-serif);
++  font: 400 1.35rem/1.55 var(--font-text);
+   color: #525252;
+   opacity: var(--o, 1);
+   transition: opacity 0.3s;
+@@ -30,16 +30,16 @@
+   background: rgba(197, 154, 69, 0.1);
+   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+   color: #171717;
+-  font: italic 600 1.9rem/1.3 var(--font-serif);
++  font: italic 600 1.9rem/1.3 var(--font-text);
+ }
+ 
+-.tag { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(255, 255, 255, 0.85); font: 700 0.62rem var(--font-type); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-700); font-style: normal; }
++.tag { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(255, 255, 255, 0.85); font: 700 0.62rem var(--font-text); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-700); font-style: normal; }
+ .tag--short { display: none; }
+ 
+-.foot { display: flex; justify-content: space-between; gap: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(197, 160, 89, 0.2); font: 400 0.7rem var(--font-sans); color: #737373; }
+-.foot__note { font: italic 400 0.8rem var(--font-serif); text-align: right; }
++.foot { display: flex; justify-content: space-between; gap: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(197, 160, 89, 0.2); font: 400 0.7rem var(--font-text); color: #737373; }
++.foot__note { font: italic 400 0.8rem var(--font-text); text-align: right; }
+ 
+-.empty { margin: 2rem 0; font: italic 400 1.2rem/1.5 var(--font-serif); color: var(--muted); }
++.empty { margin: 2rem 0; font: italic 400 1.2rem/1.5 var(--font-text); color: var(--muted); }
+ 
+ @media (min-width: 1024px) {
+   .sync { display: inline-flex; }
+diff --git a/src/app/pages/now-playing/components/participants-list/participants-list.component.css b/src/app/pages/now-playing/components/participants-list/participants-list.component.css
+index f860866..5258225 100644
+--- a/src/app/pages/now-playing/components/participants-list/participants-list.component.css
++++ b/src/app/pages/now-playing/components/participants-list/participants-list.component.css
+@@ -1,16 +1,16 @@
+ :host { display: block; }
+ 
+ .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+-h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 700 0.72rem var(--font-type); letter-spacing: 0.12em; text-transform: uppercase; color: #262626; }
++h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 700 0.72rem var(--font-text); letter-spacing: 0.12em; text-transform: uppercase; color: #262626; }
+ h3 svg { width: 1rem; color: var(--gold-600); }
+-.count { font: 400 0.65rem var(--font-type); color: #737373; }
+-.blurb { margin: 0 0 0.75rem; font: italic 400 0.8rem var(--font-serif); color: #525252; }
++.count { font: 400 0.65rem var(--font-text); color: #737373; }
++.blurb { margin: 0 0 0.75rem; font: italic 400 0.8rem var(--font-text); color: #525252; }
+ 
+ .list { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+ .item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid rgba(197, 160, 89, 0.2); background: rgba(255, 255, 255, 0.6); transition: border-color 0.2s; }
+ .item:hover { border-color: rgba(197, 160, 89, 0.5); }
+ .avatar { width: 1.9rem; height: 1.9rem; flex: none; border-radius: 50%; object-fit: cover; }
+-.avatar--initials { display: grid; place-items: center; background: rgba(197, 154, 69, 0.18); font: 700 0.65rem var(--font-sans); color: var(--gold-700); }
++.avatar--initials { display: grid; place-items: center; background: rgba(197, 154, 69, 0.18); font: 700 0.65rem var(--font-text); color: var(--gold-700); }
+ .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+-.who strong { font: 600 0.78rem var(--font-sans); color: #262626; }
+-.who small { font: 400 0.68rem var(--font-sans); color: #737373; }
++.who strong { font: 600 0.78rem var(--font-text); color: #262626; }
++.who small { font: 400 0.68rem var(--font-text); color: #737373; }
+diff --git a/src/app/pages/now-playing/components/playback-controls/playback-controls.component.css b/src/app/pages/now-playing/components/playback-controls/playback-controls.component.css
+index 3689dd8..712afa5 100644
+--- a/src/app/pages/now-playing/components/playback-controls/playback-controls.component.css
++++ b/src/app/pages/now-playing/components/playback-controls/playback-controls.component.css
+@@ -13,7 +13,7 @@ button:active { transform: scale(0.94); }
+ .skip svg { width: 2.6rem; }
+ .ic-desktop { display: none; }
+ 
+-.play { width: 4.5rem; height: 4.5rem; border-radius: 50%; border: 1px solid #3d4a3f; background: var(--olive-900); color: var(--gold-500); box-shadow: 0 8px 18px rgba(28, 36, 29, 0.3); }
++.play { width: 4.5rem; height: 4.5rem; border-radius: 50%; border: 1px solid var(--blue-300); background: var(--blue-500); color: var(--gold-300); box-shadow: 0 8px 18px rgba(9, 39, 169, 0.32); }
+ .play svg { width: 2rem; }
+ 
+ @media (min-width: 1024px) {
+diff --git a/src/app/pages/now-playing/components/player-bar/player-bar.component.css b/src/app/pages/now-playing/components/player-bar/player-bar.component.css
+index 92e115b..d63a764 100644
+--- a/src/app/pages/now-playing/components/player-bar/player-bar.component.css
++++ b/src/app/pages/now-playing/components/player-bar/player-bar.component.css
+@@ -19,8 +19,8 @@
+ 
+   .output { display: flex; align-items: center; gap: 0.6rem; min-width: 0; color: #404040; }
+   .output svg { width: 1rem; flex: none; color: var(--gold-700); }
+-  .output__name { font: 700 0.78rem var(--font-serif); color: #262626; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+-  .chip { padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid #d4d4d4; background: #e5e5e5; font: 400 0.62rem var(--font-type); color: #404040; white-space: nowrap; }
++  .output__name { font: 700 0.78rem var(--font-title); color: #262626; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
++  .chip { padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid #d4d4d4; background: #e5e5e5; font: 400 0.62rem var(--font-text); color: #404040; white-space: nowrap; }
+ }
+ 
+ @media (min-width: 1024px) {
+diff --git a/src/app/pages/now-playing/components/player-header/player-header.component.css b/src/app/pages/now-playing/components/player-header/player-header.component.css
+index 92cadb8..6510118 100644
+--- a/src/app/pages/now-playing/components/player-header/player-header.component.css
++++ b/src/app/pages/now-playing/components/player-header/player-header.component.css
+@@ -9,17 +9,17 @@
+   padding: 1rem 1.25rem 0.5rem;
+ }
+ 
+-.back { display: grid; place-items: center; width: 3rem; height: 3rem; border: 0; border-radius: 50%; background: rgba(236, 228, 220, 0.6); color: var(--olive-900); cursor: pointer; transition: transform 0.15s; }
++.back { display: grid; place-items: center; width: 3rem; height: 3rem; border: 0; border-radius: 50%; background: rgba(236, 228, 220, 0.6); color: var(--ink); cursor: pointer; transition: transform 0.15s; }
+ .back:active { transform: scale(0.95); }
+ .back svg { width: 1.3rem; }
+ .back__arrow, .back__text, .room { display: none; }
+ 
+ .plaque { text-align: center; }
+-.plaque h1 { margin: 0; font: 600 0.95rem var(--font-display); letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold-700); }
+-.plaque__room { font: italic 400 1.05rem var(--font-serif); color: #78716c; }
++.plaque h1 { margin: 0; font: 600 0.95rem var(--font-title); letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold-700); }
++.plaque__room { font: italic 400 1.05rem var(--font-text); color: #78716c; }
+ 
+ .tech__text { display: none; }
+-.chip { display: inline-block; padding: 0.5rem 0.9rem; border-radius: 999px; background: var(--olive-900); color: var(--gold-300); font: 700 0.75rem var(--font-type); letter-spacing: 0.05em; white-space: nowrap; box-shadow: 0 4px 10px rgba(28, 36, 29, 0.25); }
++.chip { display: inline-block; padding: 0.5rem 0.9rem; border-radius: 999px; background: var(--blue-500); color: var(--gold-300); font: 700 0.75rem var(--font-text); letter-spacing: 0.05em; white-space: nowrap; box-shadow: 0 4px 10px rgba(9, 39, 169, 0.28); }
+ 
+ .live { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #059669; animation: pulse 2s ease-in-out infinite; }
+ 
+@@ -32,17 +32,17 @@
+   .back__chevron { display: none; }
+   .back__arrow { width: 1.25rem; transition: transform 0.2s; }
+   .back:hover .back__arrow { transform: translateX(-2px); }
+-  .back__text { font: 600 0.72rem var(--font-sans); letter-spacing: 0.15em; text-transform: uppercase; }
++  .back__text { font: 600 0.72rem var(--font-text); letter-spacing: 0.15em; text-transform: uppercase; }
+ 
+   .room { display: flex; align-items: center; gap: 0.5rem; flex: 1; padding-left: 1rem; margin-left: 0.5rem; border-left: 1px solid rgba(212, 177, 106, 0.3); }
+-  .room__text { font: italic 400 0.9rem var(--font-serif); color: #525252; }
++  .room__text { font: italic 400 0.9rem var(--font-text); color: #525252; }
+ 
+   .plaque { display: none; }
+ 
+   .tech { display: flex; align-items: center; gap: 0.75rem; }
+   .tech__text { display: flex; flex-direction: column; text-align: right; }
+-  .tech__text span { font: 400 0.62rem var(--font-type); letter-spacing: 0.08em; text-transform: uppercase; color: #737373; }
+-  .tech__text strong { font: 700 0.75rem var(--font-type); color: #7c5a1c; }
++  .tech__text span { font: 400 0.62rem var(--font-text); letter-spacing: 0.08em; text-transform: uppercase; color: #737373; }
++  .tech__text strong { font: 700 0.75rem var(--font-text); color: #7c5a1c; }
+   .chip { padding: 0.25rem 0.65rem; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3); background: rgba(197, 154, 69, 0.15); color: #7c5a1c; font-size: 0.7rem; letter-spacing: 0.08em; box-shadow: none; }
+ }
+ 
+diff --git a/src/app/pages/now-playing/components/progress-bar/progress-bar.component.css b/src/app/pages/now-playing/components/progress-bar/progress-bar.component.css
+index 7e66557..248ef30 100644
+--- a/src/app/pages/now-playing/components/progress-bar/progress-bar.component.css
++++ b/src/app/pages/now-playing/components/progress-bar/progress-bar.component.css
+@@ -11,7 +11,7 @@
+ .range { grid-area: bar; }
+ .time--now { grid-area: now; }
+ .time--total { grid-area: total; text-align: right; }
+-.time { font: 400 0.82rem var(--font-type); color: #57534e; }
++.time { font: 400 0.82rem var(--font-text); color: #57534e; }
+ 
+ .range {
+   --pct: 0%;
+diff --git a/src/app/pages/now-playing/components/qr-code/qr-code.component.css b/src/app/pages/now-playing/components/qr-code/qr-code.component.css
+index e2dc055..73bc232 100644
+--- a/src/app/pages/now-playing/components/qr-code/qr-code.component.css
++++ b/src/app/pages/now-playing/components/qr-code/qr-code.component.css
+@@ -25,8 +25,8 @@
+ }
+ .qr__code svg { display: block; width: 100%; height: 100%; }
+ 
+-.qr__text h4 { margin: 0; font: 700 0.85rem var(--font-serif); letter-spacing: 0.06em; text-transform: uppercase; color: #171717; }
+-.qr__text p { margin: 0.4rem 0 0; font: 400 0.8rem/1.4 var(--font-sans); color: #525252; }
++.qr__text h4 { margin: 0; font: 700 0.85rem var(--font-title); letter-spacing: 0.06em; text-transform: uppercase; color: #171717; }
++.qr__text p { margin: 0.4rem 0 0; font: 400 0.8rem/1.4 var(--font-text); color: #525252; }
+ 
+ button {
+   display: inline-flex;
+@@ -37,7 +37,7 @@ button {
+   border: 0;
+   background: none;
+   cursor: pointer;
+-  font: 600 0.75rem var(--font-sans);
++  font: 600 0.75rem var(--font-text);
+   color: var(--gold-700);
+   text-decoration: underline;
+   text-underline-offset: 3px;
+diff --git a/src/app/pages/now-playing/components/score-plate/score-plate.component.css b/src/app/pages/now-playing/components/score-plate/score-plate.component.css
+index f34456d..ae797f6 100644
+--- a/src/app/pages/now-playing/components/score-plate/score-plate.component.css
++++ b/src/app/pages/now-playing/components/score-plate/score-plate.component.css
+@@ -1,9 +1,9 @@
+ :host { display: block; }
+ 
+ .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+-h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 700 0.72rem var(--font-type); letter-spacing: 0.12em; text-transform: uppercase; color: #262626; }
++h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 700 0.72rem var(--font-text); letter-spacing: 0.12em; text-transform: uppercase; color: #262626; }
+ h3 svg { width: 1rem; color: var(--gold-600); }
+-.badge { padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(212, 177, 106, 0.18); font: 700 0.62rem var(--font-serif); color: var(--gold-700); }
++.badge { padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(212, 177, 106, 0.18); font: 700 0.62rem var(--font-title); color: var(--gold-700); }
+ 
+ .plate {
+   position: relative;
+@@ -19,14 +19,14 @@ h3 svg { width: 1rem; color: var(--gold-600); }
+ .staves { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; min-height: 7rem; padding: 0.25rem 0; color: #262626; }
+ .staff { position: relative; display: flex; align-items: center; justify-content: space-around; height: 1.6rem; padding: 0 0.5rem; border-block: 1px solid rgba(82, 82, 82, 0.5); }
+ .staff--sign { justify-content: flex-end; height: 1.3rem; border-top: 0; }
+-.clef { position: absolute; left: 0.5rem; top: -0.3rem; font: 700 1.6rem var(--font-serif); }
++.clef { position: absolute; left: 0.5rem; top: -0.3rem; font: 700 1.6rem var(--font-title); }
+ .clef--bass { top: -0.1rem; font-size: 1.1rem; }
+-.time { margin-left: 1.6rem; font: 700 0.75rem var(--font-type); }
++.time { margin-left: 1.6rem; font: 700 0.75rem var(--font-text); }
+ .notes { display: flex; gap: 0.5rem; font-size: 0.95rem; }
+ .notes--bass { gap: 0.75rem; margin-left: 1.6rem; }
+-.annotation { position: absolute; right: 0.5rem; bottom: -0.85rem; max-width: 70%; overflow: hidden; text-overflow: ellipsis; font: 400 0.95rem var(--font-script); color: #78350f; white-space: nowrap; }
+-.signature { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 1rem var(--font-script); color: #451a03; }
++.annotation { position: absolute; right: 0.5rem; bottom: -0.85rem; max-width: 70%; overflow: hidden; text-overflow: ellipsis; font: italic 400 0.95rem var(--font-title); color: #78350f; white-space: nowrap; }
++.signature { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: italic 400 1rem var(--font-title); color: #451a03; }
+ 
+-.foot { position: relative; display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; padding-top: 0.3rem; border-top: 1px solid rgba(170, 133, 60, 0.2); font: 400 0.65rem var(--font-sans); color: #525252; }
+-.foot a { font: 600 0.65rem var(--font-sans); color: #7c5a1c; text-decoration: underline; white-space: nowrap; }
++.foot { position: relative; display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; padding-top: 0.3rem; border-top: 1px solid rgba(170, 133, 60, 0.2); font: 400 0.65rem var(--font-text); color: #525252; }
++.foot a { font: 600 0.65rem var(--font-text); color: #7c5a1c; text-decoration: underline; white-space: nowrap; }
+ .foot a:hover { color: #3b2a0b; }
+diff --git a/src/app/pages/now-playing/components/track-actions/track-actions.component.css b/src/app/pages/now-playing/components/track-actions/track-actions.component.css
+index 506273d..be372e8 100644
+--- a/src/app/pages/now-playing/components/track-actions/track-actions.component.css
++++ b/src/app/pages/now-playing/components/track-actions/track-actions.component.css
+@@ -11,7 +11,7 @@
+   border-radius: 999px;
+   background: #efe9e0;
+   color: #3b352e;
+-  font: 500 0.85rem var(--font-sans);
++  font: 500 0.85rem var(--font-text);
+   cursor: pointer;
+   transition: transform 0.15s, color 0.2s, background 0.2s;
+ }
+diff --git a/src/app/pages/now-playing/components/track-info/track-info.component.css b/src/app/pages/now-playing/components/track-info/track-info.component.css
+index 738616a..75f7c62 100644
+--- a/src/app/pages/now-playing/components/track-info/track-info.component.css
++++ b/src/app/pages/now-playing/components/track-info/track-info.component.css
+@@ -5,7 +5,7 @@
+ .eyebrow {
+   display: none;
+   margin-bottom: 0.25rem;
+-  font: 700 0.68rem var(--font-type);
++  font: 700 0.68rem var(--font-text);
+   letter-spacing: 0.2em;
+   text-transform: uppercase;
+   color: var(--gold-700);
+@@ -13,17 +13,17 @@
+ 
+ .title {
+   margin: 1.6rem 0 0;
+-  font: 700 2.3rem/1.1 var(--font-serif);
++  font: 700 2.3rem/1.1 var(--font-title);
+   letter-spacing: -0.01em;
+   color: #171513;
+ }
+ 
+ .artist {
+   margin: 0.35rem 0 0;
+-  font: 600 1.15rem/1.3 var(--font-sans);
++  font: 600 1.15rem/1.3 var(--font-text);
+   color: #23201d;
+ }
+-.session { font: italic 400 1.1rem var(--font-serif); color: var(--gold-600); }
++.session { font: italic 400 1.1rem var(--font-text); color: var(--gold-600); }
+ 
+ /* mobile: pílula com matriz, tom e andamento */
+ .meta { display: none; }
+@@ -37,7 +37,7 @@
+   padding: 0.7rem 1.2rem;
+   border-radius: 999px;
+   background: #efe9e0;
+-  font: 400 0.82rem var(--font-type);
++  font: 400 0.82rem var(--font-text);
+   color: #3b352e;
+ }
+ .dot { width: 0.3rem; height: 0.3rem; border-radius: 50%; background: var(--gold-500); }
+@@ -45,7 +45,7 @@
+ @media (min-width: 1024px) {
+   .eyebrow { display: block; }
+   .title { margin-top: 0.4rem; font-size: 2.4rem; text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8); }
+-  .artist { font: italic 600 1.2rem var(--font-serif); color: var(--gold-700); }
++  .artist { font: italic 600 1.2rem var(--font-title); color: var(--gold-700); }
+   .session { font-size: inherit; font-weight: inherit; }
+ 
+   .pill { display: none; }
+@@ -61,6 +61,6 @@
+     background: rgba(244, 239, 230, 0.6);
+     text-align: left;
+   }
+-  .meta dt { font: 500 0.62rem var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: #78716c; }
+-  .meta dd { margin: 0.1rem 0 0; font: 500 0.78rem var(--font-sans); color: #3b352e; }
++  .meta dt { font: 500 0.62rem var(--font-text); letter-spacing: 0.08em; text-transform: uppercase; color: #78716c; }
++  .meta dd { margin: 0.1rem 0 0; font: 500 0.78rem var(--font-text); color: #3b352e; }
+ }
+diff --git a/src/app/pages/now-playing/components/track-media/track-media.component.css b/src/app/pages/now-playing/components/track-media/track-media.component.css
+index 410e21a..5aea2a6 100644
+--- a/src/app/pages/now-playing/components/track-media/track-media.component.css
++++ b/src/app/pages/now-playing/components/track-media/track-media.component.css
+@@ -35,7 +35,7 @@
+   border: 1px solid rgba(197, 154, 69, 0.3);
+   background: rgba(255, 255, 255, 0.92);
+   color: #2d2820;
+-  font: 700 0.7rem var(--font-type);
++  font: 700 0.7rem var(--font-text);
+   letter-spacing: 0.05em;
+   white-space: nowrap;
+   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+diff --git a/src/app/pages/now-playing/components/track-media/track-media.component.html b/src/app/pages/now-playing/components/track-media/track-media.component.html
+index db1f706..21f15ba 100644
+--- a/src/app/pages/now-playing/components/track-media/track-media.component.html
++++ b/src/app/pages/now-playing/components/track-media/track-media.component.html
+@@ -3,11 +3,18 @@
+      (click)="toggle.emit()" (keydown.enter)="toggle.emit()" (keydown.space)="$event.preventDefault(); toggle.emit()">
+   <div class="glow"></div>
+ 
+-  @if (format() === 'vinyl') {
+-    <app-vinyl-disc class="piece" [label]="label()" [spinning]="playing()" />
+-    <span class="badge">Vinil • {{ track().year ?? 's/d' }}</span>
+-  } @else {
+-    <app-cassette-tape class="piece" [spec]="spec()" [spinning]="playing()" />
+-    <span class="badge">Fita K7 • {{ track().year }}</span>
++  @switch (format()) {
++    @case ('vinyl') {
++      <app-vinyl-disc class="piece" [label]="label()" [spinning]="playing()" [gold]="gold()" />
++      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}Vinil • {{ track().year ?? 's/d' }}</span>
++    }
++    @case ('cd') {
++      <app-cd-disc class="piece" [label]="label()" [spinning]="playing()" [gold]="gold()" />
++      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}CD • {{ track().year }}</span>
++    }
++    @default {
++      <app-cassette-tape class="piece" [spec]="spec()" [spinning]="playing()" [gold]="gold()" />
++      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}Fita K7 • {{ track().year }}</span>
++    }
+   }
+ </div>
+diff --git a/src/app/pages/now-playing/components/track-media/track-media.component.ts b/src/app/pages/now-playing/components/track-media/track-media.component.ts
+index 82057d9..556bedf 100644
+--- a/src/app/pages/now-playing/components/track-media/track-media.component.ts
++++ b/src/app/pages/now-playing/components/track-media/track-media.component.ts
+@@ -1,9 +1,11 @@
+-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
++import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+ import { Track } from '../../../../core/models/track.model';
++import { LibraryService } from '../../../../core/services/library.service';
+ import { cassetteOf, formatByYear, vinylLabelOf } from '../../../../core/utils/media-format';
+ 
+ /**
+- * Mídia da faixa: vinil até 1979, fita K7 a partir de 1980 (regra única em media-format.ts).
++ * Mídia da faixa: vinil até 1979, fita K7 de 1980 a 1989, CD a partir de 1990 (regra única em media-format.ts).
++ * As músicas mais escutadas aparecem como disco de ouro.
+  * Clicar na mídia pausa/retoma.
+  */
+ @Component({
+@@ -18,7 +20,9 @@ export class TrackMediaComponent {
+   readonly playing = input(false);
+   readonly toggle = output<void>();
+ 
++  private readonly library = inject(LibraryService);
+   protected readonly format = computed(() => formatByYear(this.track().year));
++  protected readonly gold = computed(() => this.library.isGold(this.track().id));
+   protected readonly label = computed(() => vinylLabelOf(this.track()));
+   protected readonly spec = computed(() => cassetteOf(this.track()));
+ }
+diff --git a/src/app/pages/now-playing/components/view-tabs/view-tabs.component.css b/src/app/pages/now-playing/components/view-tabs/view-tabs.component.css
+index 8b76da5..ca88a71 100644
+--- a/src/app/pages/now-playing/components/view-tabs/view-tabs.component.css
++++ b/src/app/pages/now-playing/components/view-tabs/view-tabs.component.css
+@@ -1,9 +1,9 @@
+ :host { display: block; width: 100%; }
+ 
+ .tabs { display: flex; gap: 0.25rem; padding: 0.3rem; border-radius: 999px; background: #efe9e0; }
+-.tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.7rem 0.4rem; border: 0; border-radius: 999px; background: none; cursor: pointer; font: 500 0.78rem/1.15 var(--font-sans); color: #3b352e; transition: background 0.25s, color 0.25s; }
++.tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.7rem 0.4rem; border: 0; border-radius: 999px; background: none; cursor: pointer; font: 500 0.78rem/1.15 var(--font-text); color: #3b352e; transition: background 0.25s, color 0.25s; }
+ .tab svg { width: 1.1rem; flex: none; }
+-.tab--active { background: var(--olive-900); color: #fff; box-shadow: 0 4px 10px rgba(28, 36, 29, 0.25); }
++.tab--active { background: var(--blue-500); color: #fff; box-shadow: 0 4px 10px rgba(9, 39, 169, 0.28); }
+ 
+ @media (min-width: 1024px) {
+   :host { display: none; }
+diff --git a/src/app/pages/now-playing/now-playing.component.css b/src/app/pages/now-playing/now-playing.component.css
+index ed2d126..34fc9f6 100644
+--- a/src/app/pages/now-playing/now-playing.component.css
++++ b/src/app/pages/now-playing/now-playing.component.css
+@@ -8,7 +8,7 @@
+ .col--identity app-view-tabs { margin-top: 1.5rem; }
+ .col--lyrics, .col--artifacts { padding: 1rem 1.25rem 0; }
+ .block { display: block; margin-bottom: 1.5rem; }
+-.empty { margin: 1rem 0; font: italic 400 1.1rem/1.5 var(--font-serif); color: var(--muted); text-align: center; }
++.empty { margin: 1rem 0; font: italic 400 1.1rem/1.5 var(--font-text); color: var(--muted); text-align: center; }
+ 
+ /* no mobile só o painel da aba ativa aparece */
+ .panel { display: none; }
+@@ -47,5 +47,5 @@
+   .block { margin-bottom: 1.25rem; }
+ }
+ 
+-.state { margin: 3rem 1.5rem; text-align: center; font: italic 400 1.15rem var(--font-serif); color: var(--muted); }
++.state { margin: 3rem 1.5rem; text-align: center; font: italic 400 1.15rem var(--font-text); color: var(--muted); }
+ .state a { color: var(--gold-700); }
+diff --git a/src/app/shared/cassette-tape/cassette-tape.component.css b/src/app/shared/cassette-tape/cassette-tape.component.css
+index 49d1264..6fef6ca 100644
+--- a/src/app/shared/cassette-tape/cassette-tape.component.css
++++ b/src/app/shared/cassette-tape/cassette-tape.component.css
+@@ -11,6 +11,14 @@
+   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -2px 4px rgba(0, 0, 0, 0.8), 0 12px 24px rgba(0, 0, 0, 0.3);
+ }
+ 
++.shell--gold {
++  --shell: #a97e2c;
++  border-color: rgba(255, 244, 214, 0.55);
++  background: linear-gradient(135deg, #efd596 0%, #c59a45 40%, #a97e2c 70%, #d8b062 100%);
++  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(90, 60, 10, 0.55), 0 12px 24px rgba(138, 99, 30, 0.35);
++}
++.shell--gold .screw { background: #8a631e; }
++
+ .body {
+   position: absolute;
+   inset: 0;
+@@ -42,7 +50,7 @@
+   border-bottom: 1px solid #c8beab;
+   background: #ece7dc;
+   color: #23201c;
+-  font-family: var(--font-type);
++  font-family: var(--font-text);
+   font-size: clamp(0.4rem, 4.4cqw, 0.85rem);
+ }
+ .heading { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@@ -94,7 +102,7 @@
+   border: 1px solid #4f3c28;
+   background: #2a231c;
+   color: #e5a852;
+-  font: 700 clamp(0.4rem, 4.2cqw, 0.8rem) var(--font-type);
++  font: 700 clamp(0.4rem, 4.2cqw, 0.8rem) var(--font-text);
+   letter-spacing: 0.1em;
+ }
+ 
+@@ -103,7 +111,7 @@
+   justify-content: space-between;
+   padding: 0 1.5cqw;
+   color: #9ea6a0;
+-  font: 400 clamp(0.36rem, 3.2cqw, 0.65rem) var(--font-type);
++  font: 400 clamp(0.36rem, 3.2cqw, 0.65rem) var(--font-text);
+   text-transform: uppercase;
+ }
+ .gold { color: #d8a748; font-weight: 700; }
+diff --git a/src/app/shared/cassette-tape/cassette-tape.component.html b/src/app/shared/cassette-tape/cassette-tape.component.html
+index 64b7a59..8fa1ef4 100644
+--- a/src/app/shared/cassette-tape/cassette-tape.component.html
++++ b/src/app/shared/cassette-tape/cassette-tape.component.html
+@@ -1,5 +1,5 @@
+ @if (spec(); as c) {
+-  <div class="shell" [style.--shell]="c.shell">
++  <div class="shell" [class.shell--gold]="gold()" [style.--shell]="c.shell">
+     <div class="body">
+       <i class="screw tl"></i><i class="screw tr"></i><i class="screw bl"></i><i class="screw br"></i>
+ 
+diff --git a/src/app/shared/cassette-tape/cassette-tape.component.ts b/src/app/shared/cassette-tape/cassette-tape.component.ts
+index 9dd8ba5..c18fbb1 100644
+--- a/src/app/shared/cassette-tape/cassette-tape.component.ts
++++ b/src/app/shared/cassette-tape/cassette-tape.component.ts
+@@ -12,4 +12,6 @@ import { CassetteSpec } from '../../core/models/media.model';
+ export class CassetteTapeComponent {
+   readonly spec = input.required<CassetteSpec>();
+   readonly spinning = input(false);
++  /** Disco de ouro: a fita ganha a carcaça dourada. */
++  readonly gold = input(false);
+ }
+diff --git a/src/app/shared/cd-disc/cd-disc.component.css b/src/app/shared/cd-disc/cd-disc.component.css
+new file mode 100644
+index 0000000..47b2ac6
+--- /dev/null
++++ b/src/app/shared/cd-disc/cd-disc.component.css
+@@ -0,0 +1,99 @@
++:host {
++  display: block;
++  width: 100%;
++  aspect-ratio: 1;
++  container-type: inline-size; /* textos do selo escalam com cqw */
++}
++
++.disc {
++  position: relative;
++  width: 100%;
++  height: 100%;
++  border-radius: 50%;
++}
++
++.platter {
++  position: absolute;
++  inset: 0;
++  border-radius: 50%;
++  overflow: hidden;
++  display: grid;
++  place-items: center;
++  /* policarbonato prateado */
++  background: conic-gradient(from 20deg, #e9ecef, #bfc5cc, #f6f7f9, #aab1ba, #eef0f3, #c4cad2, #e9ecef);
++  box-shadow: inset 0 0 0 0.8cqw #cfd4da, inset 0 0 12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.12);
++  animation: platter-spin 6s linear infinite;
++}
++.platter.paused { animation-play-state: paused; }
++
++.disc--gold .platter {
++  background: conic-gradient(from 20deg, #efd596, #c59a45, #f6e7bd, #a97e2c, #efd596, #d8b062, #efd596);
++  box-shadow: inset 0 0 0 0.8cqw #b88a35, inset 0 0 12px rgba(90, 60, 10, 0.3), 0 0 0 1px rgba(138, 99, 30, 0.5);
++}
++
++/* área impressa (arte do CD) */
++.print {
++  width: 88%;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: flex-start;
++  gap: 0.6cqw;
++  padding-top: 11cqw;
++  text-align: center;
++  line-height: 1.1;
++  /* recorte do anel interno (onde fica o hub) */
++  -webkit-mask: radial-gradient(circle, transparent 0 14cqw, #000 14.4cqw);
++  mask: radial-gradient(circle, transparent 0 14cqw, #000 14.4cqw);
++  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
++}
++
++.line {
++  font-family: var(--font-text);
++  font-size: 3.2cqw;
++  opacity: 0.88;
++}
++.line--main {
++  font-family: var(--font-title);
++  font-size: 4.2cqw;
++  font-weight: 700;
++  letter-spacing: 0.1em;
++  opacity: 1;
++}
++
++/* anel de plástico transparente + furo */
++.hub {
++  position: absolute;
++  width: 28%;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0 45%, rgba(220, 224, 230, 0.7) 46% 100%);
++  border: 0.5cqw solid rgba(255, 255, 255, 0.7);
++  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
++}
++.hole {
++  width: 38%;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  background: var(--bg);
++  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
++}
++
++/* reflexo parado (a luz não gira com o disco) */
++.shine {
++  position: absolute;
++  inset: 0;
++  border-radius: 50%;
++  pointer-events: none;
++  background: conic-gradient(from 45deg, rgba(255, 255, 255, 0.35) 0deg, transparent 50deg, rgba(255, 255, 255, 0.5) 120deg,
++    transparent 190deg, rgba(255, 255, 255, 0.3) 240deg, transparent 300deg, rgba(255, 255, 255, 0.5) 360deg);
++  mix-blend-mode: soft-light;
++}
++
++@keyframes platter-spin {
++  to { transform: rotate(360deg); }
++}
+diff --git a/src/app/shared/cd-disc/cd-disc.component.html b/src/app/shared/cd-disc/cd-disc.component.html
+new file mode 100644
+index 0000000..33816cd
+--- /dev/null
++++ b/src/app/shared/cd-disc/cd-disc.component.html
+@@ -0,0 +1,11 @@
++<div class="disc" [class.disc--gold]="gold()">
++  <div class="platter" [class.paused]="!spinning()">
++    <div class="print" [style.background]="label().bg" [style.color]="label().fg">
++      @for (line of label().lines; track $index) {
++        <span class="line" [class.line--main]="$first">{{ line }}</span>
++      }
++    </div>
++    <span class="hub"><i class="hole"></i></span>
++  </div>
++  <div class="shine"></div>
++</div>
+diff --git a/src/app/shared/cd-disc/cd-disc.component.ts b/src/app/shared/cd-disc/cd-disc.component.ts
+new file mode 100644
+index 0000000..10b696a
+--- /dev/null
++++ b/src/app/shared/cd-disc/cd-disc.component.ts
+@@ -0,0 +1,17 @@
++import { ChangeDetectionStrategy, Component, input } from '@angular/core';
++import { VinylLabel } from '../../core/models/media.model';
++
++/** CD: face prateada com reflexo, área impressa (mesmo selo do vinil), anel de plástico e furo central. */
++@Component({
++  selector: 'app-cd-disc',
++  standalone: false,
++  templateUrl: './cd-disc.component.html',
++  styleUrl: './cd-disc.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class CdDiscComponent {
++  readonly label = input.required<VinylLabel>();
++  readonly spinning = input(false);
++  /** Disco de ouro: música entre as mais escutadas (CD dourado). */
++  readonly gold = input(false);
++}
+diff --git a/src/app/shared/shared.module.ts b/src/app/shared/shared.module.ts
+index 2384c14..435854e 100644
+--- a/src/app/shared/shared.module.ts
++++ b/src/app/shared/shared.module.ts
+@@ -1,12 +1,13 @@
+ import { CommonModule } from '@angular/common';
+ import { NgModule } from '@angular/core';
+ import { CassetteTapeComponent } from './cassette-tape/cassette-tape.component';
++import { CdDiscComponent } from './cd-disc/cd-disc.component';
+ import { VinylDiscComponent } from './vinyl-disc/vinyl-disc.component';
+ 
+-/** Disco de vinil e fita K7: usados na biblioteca, no player e no mini player. */
++/** Disco de vinil, CD e fita K7: usados na biblioteca, no player e no mini player. */
+ @NgModule({
+-  declarations: [VinylDiscComponent, CassetteTapeComponent],
++  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent],
+   imports: [CommonModule],
+-  exports: [VinylDiscComponent, CassetteTapeComponent],
++  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent],
+ })
+ export class SharedModule {}
+diff --git a/src/app/shared/vinyl-disc/vinyl-disc.component.css b/src/app/shared/vinyl-disc/vinyl-disc.component.css
+index 67b5810..3761787 100644
+--- a/src/app/shared/vinyl-disc/vinyl-disc.component.css
++++ b/src/app/shared/vinyl-disc/vinyl-disc.component.css
+@@ -24,6 +24,15 @@
+   animation: platter-spin 22s linear infinite;
+ }
+ 
++/* disco de ouro: ranhuras em tons de #c59a45 */
++.platter--gold {
++  background: repeating-radial-gradient(circle, #a97e2c 0, #d8b062 1.5px, #b88a35 3px, #efd596 4.5px, #a97e2c 6px);
++  box-shadow: inset 0 0 0 1.6cqw #8a631e, inset 0 0 14px rgba(255, 244, 214, 0.45);
++}
++.platter--gold::after {
++  border-top-color: rgba(255, 255, 255, 0.4);
++}
++
+ .platter.paused {
+   animation-play-state: paused;
+ }
+@@ -64,13 +73,13 @@
+ }
+ 
+ .line {
+-  font-family: var(--font-type);
++  font-family: var(--font-text);
+   font-size: 3.2cqw;
+   opacity: 0.85;
+ }
+ 
+ .line--main {
+-  font-family: var(--font-sans);
++  font-family: var(--font-text);
+   font-size: 3.8cqw;
+   font-weight: 800;
+   letter-spacing: 0.12em;
+diff --git a/src/app/shared/vinyl-disc/vinyl-disc.component.html b/src/app/shared/vinyl-disc/vinyl-disc.component.html
+index 83711c6..2ff84fe 100644
+--- a/src/app/shared/vinyl-disc/vinyl-disc.component.html
++++ b/src/app/shared/vinyl-disc/vinyl-disc.component.html
+@@ -1,5 +1,5 @@
+ <div class="disc">
+-  <div class="platter" [class.paused]="!spinning()">
++  <div class="platter" [class.paused]="!spinning()" [class.platter--gold]="gold()">
+     <div class="label" [style.background]="label().bg" [style.color]="label().fg" [style.borderColor]="label().ring">
+       @for (line of label().lines; track $index) {
+         <span class="line" [class.line--main]="$first">{{ line }}</span>
+diff --git a/src/app/shared/vinyl-disc/vinyl-disc.component.ts b/src/app/shared/vinyl-disc/vinyl-disc.component.ts
+index cddecf6..9ce34c6 100644
+--- a/src/app/shared/vinyl-disc/vinyl-disc.component.ts
++++ b/src/app/shared/vinyl-disc/vinyl-disc.component.ts
+@@ -12,4 +12,6 @@ import { VinylLabel } from '../../core/models/media.model';
+ export class VinylDiscComponent {
+   readonly label = input.required<VinylLabel>();
+   readonly spinning = input(false);
++  /** Disco de ouro: música entre as mais escutadas. */
++  readonly gold = input(false);
+ }
+diff --git a/src/index.html b/src/index.html
+index 5ceae70..26b01bc 100644
+--- a/src/index.html
++++ b/src/index.html
+@@ -7,7 +7,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+-  <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Courier+Prime:wght@400;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
++  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+ </head>
+ <body>
+   <app-root></app-root>
+diff --git a/src/styles.css b/src/styles.css
+index 1008f93..407ec3b 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -6,22 +6,32 @@
+ }
+ 
+ :root {
++  /* ---- Dourado / bege (base #c59a45 e subtons) ---- */
+   --bg: #f8f5ee;
+   --creme-50: #fdfbf7;
+   --creme-200: #f4efe6;
+   --parchment: #faf7f0;
+   --parchment-100: #fbf9f5;
++  --gold-100: #f6ecd6;
++  --gold-200: #efdcae;
+   --gold-300: #e5c07b;
+   --gold-500: #c59a45;
+   --gold-600: #a97e2c;
+   --gold-700: #8a631e;
+-  --olive-900: #1c241d;
++
++  /* ---- Azul (base #0927a9 e subtons) ---- */
++  --blue-100: #e4e9fa;
++  --blue-300: #5f78d8;
++  --blue-500: #0927a9;
++  --blue-600: #071f87;
++  --blue-900: #04134f;
++
++  --ink: #1c241d;
+   --muted: #786e61;
+-  --font-serif: 'Cormorant Garamond', Georgia, serif;
+-  --font-display: 'Cinzel', serif;
+-  --font-sans: 'Montserrat', sans-serif;
+-  --font-type: 'Courier Prime', Courier, monospace;
+-  --font-script: 'Alex Brush', cursive;
++
++  /* ---- Tipografia: Roboto (texto) e Roboto Condensed (títulos) ---- */
++  --font-text: 'Roboto', system-ui, sans-serif;
++  --font-title: 'Roboto Condensed', 'Roboto', system-ui, sans-serif;
+ }
+ 
+ *, *::before, *::after { box-sizing: border-box; }
+@@ -33,7 +43,7 @@ body {
+   min-height: 100vh;
+   background: var(--bg) radial-gradient(circle at 50% 0%, rgba(229, 192, 123, 0.08) 0%, transparent 70%) no-repeat;
+   color: #26211c;
+-  font-family: var(--font-sans);
++  font-family: var(--font-text);
+   -webkit-font-smoothing: antialiased;
+ }
+ 

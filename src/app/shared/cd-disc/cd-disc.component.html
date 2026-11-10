@@ -1,0 +1,13 @@
+<div class="disc" [class.disc--gold]="gold()">
+  <div class="platter" [class.paused]="!spinning()">
+    <span class="disc-ring disc-ring--outer" aria-hidden="true"></span>
+    <span class="disc-ring disc-ring--inner" aria-hidden="true"></span>
+    <div class="print" [style.background]="label().bg" [style.color]="label().fg">
+      @for (line of label().lines; track $index) {
+        <span class="line" [class.line--main]="$first">{{ line }}</span>
+      }
+    </div>
+    <span class="hub"><i class="hole"></i></span>
+  </div>
+  <div class="shine"></div>
+</div>

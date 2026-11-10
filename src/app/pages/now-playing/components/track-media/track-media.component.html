@@ -3,11 +3,18 @@
      (click)="toggle.emit()" (keydown.enter)="toggle.emit()" (keydown.space)="$event.preventDefault(); toggle.emit()">
   <div class="glow"></div>
 
-  @if (format() === 'vinyl') {
-    <app-vinyl-disc class="piece" [label]="label()" [spinning]="playing()" />
-    <span class="badge">Vinil • {{ track().year ?? 's/d' }}</span>
-  } @else {
-    <app-cassette-tape class="piece" [spec]="spec()" [spinning]="playing()" />
-    <span class="badge">Fita K7 • {{ track().year }}</span>
+  @switch (format()) {
+    @case ('vinyl') {
+      <app-vinyl-disc class="piece" [label]="label()" [spinning]="playing()" />
+      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}Vinil • {{ track().year ?? 's/d' }}</span>
+    }
+    @case ('cd') {
+      <app-cd-disc class="piece" [label]="label()" [spinning]="playing()" />
+      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}CD • {{ track().year }}</span>
+    }
+    @default {
+      <app-cassette-tape class="piece" [spec]="spec()" [spinning]="playing()" />
+      <span class="badge">{{ gold() ? 'Disco de Ouro • ' : '' }}Fita K7 • {{ track().year }}</span>
+    }
   }
 </div>

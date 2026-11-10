@@ -21,6 +21,7 @@ export class LibraryComponent implements OnInit {
     { id: 'all', label: 'Todos os Formatos' },
     { id: 'vinyl', label: 'Vinis (LP/EP)' },
     { id: 'cassette', label: 'Fitas K7' },
+    { id: 'cd', label: 'CDs' },
   ];
 
   ngOnInit(): void {

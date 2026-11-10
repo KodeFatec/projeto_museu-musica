@@ -28,8 +28,8 @@
   background: var(--gold-500);
   flex: none;
 }
-.dot--olive {
-  background: #344537;
+.dot--blue {
+  background: var(--blue-500);
 }
 
 .heart {
@@ -43,7 +43,7 @@
 
 .title {
   margin: 0;
-  font: 600 0.8rem var(--font-sans);
+  font: 600 0.8rem var(--font-text);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #3e362c;
@@ -51,7 +51,7 @@
 
 .subtitle {
   display: none;
-  font: italic 400 0.95rem var(--font-serif);
+  font: italic 400 0.95rem var(--font-text);
   color: #a09584;
 }
 
@@ -62,7 +62,7 @@
   cursor: pointer;
   flex: none;
   white-space: nowrap;
-  font: 500 0.7rem var(--font-sans);
+  font: 500 0.7rem var(--font-text);
   color: var(--gold-600);
 }
 .action:hover {
