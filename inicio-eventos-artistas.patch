@@ -1,0 +1,1967 @@
+diff --git a/README.md b/README.md
+index f072832..3f3df57 100644
+--- a/README.md
++++ b/README.md
+@@ -17,7 +17,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ `environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
+ 
+ ## Rotas
+-/inicio (Biblioteca) · /tocando e /tocando/:id (player) · /descobrir, /instrumentos, /perfil (provisórias)
++/inicio (Início: eventos, artistas, seleção do acervo e museu) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir e /instrumentos (provisórias)
+ 
+ ## Arquitetura
+ - core/models/dto.ts  -> formato exato da API (colunas do banco)
+@@ -26,7 +26,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ - core/mappers -> DTO -> modelo
+ - core/repositories -> uma chamada HTTP por método
+ - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
+-- shared (vinil e fita) · layout (menu, mini player) · pages/library · pages/now-playing
++- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/library (Perfil) · pages/now-playing
+ 
+ ## De onde vem cada informação da tela
+ | Na tela | Tabela.coluna |
+@@ -47,6 +47,14 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
+ | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
+ | Nome e função no menu | usuario.nome + perfil_usuario.nome |
++| Eventos: destaque e lista (título, descrição, tipo, datas, status) | atividade.titulo, descricao, tipo_atividade, data_inicio, data_fim_prevista/data_fim_real, status |
++| Sala do evento ("Em cartaz • Sala 02") | atividade_sala + sala.nome |
++| Local fora do museu | atividade.local_externo |
++| Botões "Falar com a organização" e "Ligar" | atividade.email_contato, telefone_contato |
++| Artistas (círculo, nome, gênero, nº de músicas) | artista.nome_artistico, foto_url via musica_artista; gênero e ranking pelas músicas e por historico_musica |
++| Seleção do Acervo | musica (com busca e filtro de formato) |
++| Faixa "Visite o museu" (nome, descrição, endereço, contatos) | museu.nome, descricao, endereco, telefone, email |
++| Salas e capacidade da faixa "Visite o museu" | sala.nome, capacidade |
+ | QR Code | link /tocando/:id da própria aplicação |
+ 
+ ## Identidade visual
+@@ -58,6 +66,7 @@ Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo
+ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
+ Planejadas (o front já chama; no mock funcionam):
+ - GET /generos
++- GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
+ - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)
+ - DELETE /musicas-favoritas/:id_usuario/:id_musica
+ - Filtros ?id_musica= (letra_trecho, partituras, musica-artista) e ?id_usuario= (favoritas, historico)
+diff --git a/src/app/app-routing.module.ts b/src/app/app-routing.module.ts
+index 9248d74..a923f41 100644
+--- a/src/app/app-routing.module.ts
++++ b/src/app/app-routing.module.ts
+@@ -5,11 +5,11 @@ const comingSoon = () => import('./pages/coming-soon/coming-soon.module').then((
+ 
+ const routes: Routes = [
+   { path: '', pathMatch: 'full', redirectTo: 'inicio' },
+-  { path: 'inicio', loadChildren: () => import('./pages/library/library.module').then((m) => m.LibraryModule) },
++  { path: 'inicio', loadChildren: () => import('./pages/home/home.module').then((m) => m.HomeModule) },
++  { path: 'perfil', loadChildren: () => import('./pages/library/library.module').then((m) => m.LibraryModule) },
+   { path: 'tocando', loadChildren: () => import('./pages/now-playing/now-playing.module').then((m) => m.NowPlayingModule) },
+   { path: 'descobrir', data: { title: 'Descobrir' }, loadChildren: comingSoon },
+   { path: 'instrumentos', data: { title: 'Instrumentos' }, loadChildren: comingSoon },
+-  { path: 'perfil', data: { title: 'Perfil' }, loadChildren: comingSoon },
+   { path: '**', redirectTo: 'inicio' },
+ ];
+ 
+diff --git a/src/app/app.component.ts b/src/app/app.component.ts
+index 2d977a7..65388b3 100644
+--- a/src/app/app.component.ts
++++ b/src/app/app.component.ts
+@@ -31,9 +31,10 @@ export class AppComponent implements OnInit {
+     void this.library.load();
+   }
+ 
+-  /** A busca do menu filtra a biblioteca; fora do Início, leva para lá. */
++  /** A busca do menu filtra o acervo; fora do Início e do Perfil, leva para o Início. */
+   protected onSearch(query: string): void {
+     this.library.query.set(query);
+-    if (!this.router.url.startsWith('/inicio')) void this.router.navigate(['/inicio']);
++    const url = this.router.url;
++    if (!url.startsWith('/inicio') && !url.startsWith('/perfil')) void this.router.navigate(['/inicio']);
+   }
+ }
+diff --git a/src/app/core/api/endpoints.ts b/src/app/core/api/endpoints.ts
+index 130f3c7..99de397 100644
+--- a/src/app/core/api/endpoints.ts
++++ b/src/app/core/api/endpoints.ts
+@@ -12,4 +12,7 @@ export const ENDPOINTS = {
+   generos: '/generos', // PLANEJADA
+   musicaArtista: '/musica-artista', // PLANEJADA
+   usuarios: '/usuarios', // PLANEJADA
++  atividades: '/atividades', // PLANEJADA
++  museu: '/museu', // PLANEJADA
++  salas: '/salas', // PLANEJADA
+ } as const;
+diff --git a/src/app/core/api/mock/mock-adapter.ts b/src/app/core/api/mock/mock-adapter.ts
+index e675771..fa7342d 100644
+--- a/src/app/core/api/mock/mock-adapter.ts
++++ b/src/app/core/api/mock/mock-adapter.ts
+@@ -46,6 +46,8 @@ export const mockAdapter: AxiosAdapter = async (config) => {
+     musicas: { rows: () => db.musicas as unknown as Row[], idKey: 'id_musica' },
+     artistas: { rows: () => db.artistas as unknown as Row[], idKey: 'id_artista' },
+     generos: { rows: () => db.generos as unknown as Row[], idKey: 'id_genero' },
++    atividades: { rows: () => db.atividades as unknown as Row[], idKey: 'id_atividade' },
++    salas: { rows: () => db.salas as unknown as Row[], idKey: 'id_sala' },
+     'musica-artista': {
+       rows: () => filterBy(db.musicaArtista as unknown as Row[], 'id_musica', query['id_musica']),
+       idKey: 'id_musica',
+@@ -123,6 +125,9 @@ export const mockAdapter: AxiosAdapter = async (config) => {
+     });
+   }
+ 
++  // --- museu (rota planejada): um único registro
++  if (resource === 'museu' && method === 'get') return respond(config, db.museu);
++
+   // --- leitura genérica
+   const table = tables[resource];
+   if (table && method === 'get') {
+diff --git a/src/app/core/api/mock/mock-db.ts b/src/app/core/api/mock/mock-db.ts
+index ec8dc7f..c573699 100644
+--- a/src/app/core/api/mock/mock-db.ts
++++ b/src/app/core/api/mock/mock-db.ts
+@@ -1,13 +1,16 @@
+ import {
+   ArtistaDto,
++  AtividadeDto,
+   GeneroMusicalDto,
+   HistoricoMusicaDto,
+   LetraTrechoDto,
+   MusicaArtistaDto,
+   MusicaDto,
+   MusicaFavoritaDto,
++  MuseuDto,
+   PartituraDto,
+   PerfilUsuarioDto,
++  SalaDto,
+   UsuarioDto,
+ } from '../../models/dto';
+ 
+@@ -248,3 +251,44 @@ historico.forEach((h, i) => {
+   if (h.id_musica >= 6 && h.id_musica <= 9)
+     h.data_reproducao = `2026-10-24 ${22 - (h.id_musica - 6)}:10:00`;
+ });
++
++// ---------- Museu, salas e atividades (eventos) ----------
++export const museu: MuseuDto = {
++  id_museu: 1,
++  nome: 'Museu da Música de Itu',
++  descricao: 'Acervo de instrumentos, partituras e gravações históricas, com salas de escuta e programação de eventos.',
++  endereco: 'Itu — SP',
++  telefone: '(11) 0000-0000',
++  email: 'contato@museu.example',
++};
++
++export const salas: SalaDto[] = [
++  { id_sala: 1, id_museu: 1, nome: 'Sala 01', descricao: null, capacidade: 20 },
++  { id_sala: 2, id_museu: 1, nome: 'Sala 02', descricao: 'Salão Nobre', capacidade: 40 },
++  { id_sala: 3, id_museu: 1, nome: 'Sala 03', descricao: null, capacidade: 15 },
++  { id_sala: 4, id_museu: 1, nome: 'Sala 04', descricao: null, capacidade: 30 },
++];
++
++const atividade = (
++  id_atividade: number,
++  titulo: string,
++  descricao: string,
++  tipo_atividade: string,
++  status: string,
++  data_inicio: string,
++  data_fim_prevista: string,
++  idSala: number,
++): AtividadeDto => ({
++  id_atividade, id_museu: 1, id_destino: null, titulo, descricao, tipo_atividade, status,
++  data_inicio, data_fim_prevista, data_fim_real: null, local_externo: null,
++  email_contato: 'contato@museu.example', telefone_contato: '(11) 0000-0000',
++  salas: salas.filter((s) => s.id_sala === idSala).map((s) => ({ id_sala: s.id_sala, nome: s.nome })),
++});
++
++export const atividades: AtividadeDto[] = [
++  atividade(1, 'Saraus e Recitais ao Piano de Cauda', 'Raridades gravadas ao vivo no Salão Nobre, em fitas originais de 1974.', 'Audição comentada', 'Em cartaz', '2026-11-05', '2026-11-30', 2),
++  atividade(2, 'Noite da Tropicália 1968', 'Fitas de ensaio dos festivais da Record.', 'Sessão de escuta', 'Agendada', '2026-11-13', '2026-11-13', 4),
++  atividade(3, 'Matrizes Raras de Bossa Nova', 'Prensagens mono originais da Odeon, de 1958.', 'Exposição', 'Agendada', '2026-11-14', '2026-11-14', 1),
++  atividade(4, 'O Som de Bobina: Pink Floyd 1973', 'Master cut em 4 pistas dos estúdios de Abbey Road.', 'Sessão de escuta', 'Agendada', '2026-11-15', '2026-11-15', 3),
++  atividade(5, 'Clube da Esquina: Gravações Noturnas', 'Voz e violão isolados em fita Scotch.', 'Recital', 'Agendada', '2026-11-17', '2026-11-17', 2),
++];
+diff --git a/src/app/core/mappers/event.mapper.ts b/src/app/core/mappers/event.mapper.ts
+new file mode 100644
+index 0000000..b912ee6
+--- /dev/null
++++ b/src/app/core/mappers/event.mapper.ts
+@@ -0,0 +1,40 @@
++import { AtividadeDto, MuseuDto, SalaDto } from '../models/dto';
++import { Museum, MuseumEvent, MuseumRoom } from '../models/event.model';
++import { parseDate } from '../utils/date-format';
++
++export function toEvent(dto: AtividadeDto): MuseumEvent {
++  return {
++    id: dto.id_atividade,
++    title: dto.titulo,
++    description: dto.descricao ?? undefined,
++    type: dto.tipo_atividade ?? undefined,
++    status: dto.status ?? undefined,
++    startDate: parseDate(dto.data_inicio),
++    // data_fim_real só existe depois que a atividade termina; antes, vale a prevista
++    endDate: parseDate(dto.data_fim_real) ?? parseDate(dto.data_fim_prevista),
++    externalPlace: dto.local_externo ?? undefined,
++    rooms: (dto.salas ?? []).map((s) => s.nome),
++    contactEmail: dto.email_contato ?? undefined,
++    contactPhone: dto.telefone_contato ?? undefined,
++  };
++}
++
++export function toMuseum(dto: MuseuDto): Museum {
++  return {
++    id: dto.id_museu,
++    name: dto.nome,
++    description: dto.descricao ?? undefined,
++    address: dto.endereco ?? undefined,
++    phone: dto.telefone ?? undefined,
++    email: dto.email ?? undefined,
++  };
++}
++
++export function toRoom(dto: SalaDto): MuseumRoom {
++  return {
++    id: dto.id_sala,
++    name: dto.nome,
++    description: dto.descricao ?? undefined,
++    capacity: dto.capacidade ?? undefined,
++  };
++}
+diff --git a/src/app/core/models/dto.ts b/src/app/core/models/dto.ts
+index 0a5710e..d635808 100644
+--- a/src/app/core/models/dto.ts
++++ b/src/app/core/models/dto.ts
+@@ -107,3 +107,44 @@ export interface PerfilUsuarioDto {
+   id_perfil: number;
+   nome: string;
+ }
++
++/**
++ * Tabela `atividade` — GET /api/atividades (PLANEJADA).
++ * Além das colunas, a API deve devolver `salas` (JOIN `atividade_sala` + `sala`), para evitar uma chamada por evento.
++ */
++export interface AtividadeDto {
++  id_atividade: number;
++  id_museu: number;
++  id_destino: number | null;
++  titulo: string;
++  descricao: string | null;
++  tipo_atividade: string | null;
++  /** "YYYY-MM-DD" */
++  data_inicio: string | null;
++  data_fim_prevista: string | null;
++  data_fim_real: string | null;
++  status: string | null;
++  local_externo: string | null;
++  email_contato: string | null;
++  telefone_contato: string | null;
++  salas?: { id_sala: number; nome: string }[];
++}
++
++/** Tabela `museu` — GET /api/museu (PLANEJADA): devolve o museu cadastrado. */
++export interface MuseuDto {
++  id_museu: number;
++  nome: string;
++  descricao: string | null;
++  endereco: string | null;
++  telefone: string | null;
++  email: string | null;
++}
++
++/** Tabela `sala` — GET /api/salas (PLANEJADA). */
++export interface SalaDto {
++  id_sala: number;
++  id_museu: number;
++  nome: string;
++  descricao: string | null;
++  capacidade: number | null;
++}
+diff --git a/src/app/core/models/event.model.ts b/src/app/core/models/event.model.ts
+new file mode 100644
+index 0000000..2ced296
+--- /dev/null
++++ b/src/app/core/models/event.model.ts
+@@ -0,0 +1,46 @@
++/** Evento do museu (`atividade` + salas ligadas por `atividade_sala`). */
++export interface MuseumEvent {
++  id: number;
++  title: string;
++  description?: string;
++  /** tipo_atividade: "Audição comentada", "Recital"... */
++  type?: string;
++  /** status: "Em cartaz", "Agendada"... */
++  status?: string;
++  startDate?: Date;
++  endDate?: Date;
++  /** local_externo, quando a atividade acontece fora do museu. */
++  externalPlace?: string;
++  rooms: string[];
++  contactEmail?: string;
++  contactPhone?: string;
++}
++
++/** Dados de contato do museu (`museu`). */
++export interface Museum {
++  id: number;
++  name: string;
++  description?: string;
++  address?: string;
++  phone?: string;
++  email?: string;
++}
++
++export interface MuseumRoom {
++  id: number;
++  name: string;
++  description?: string;
++  capacity?: number;
++}
++
++/** Artista com o resumo mostrado na tela inicial. */
++export interface ArtistSummary {
++  id: number;
++  name: string;
++  photoUrl?: string;
++  trackCount: number;
++  /** Gênero da música mais ouvida (ou a primeira) do artista. */
++  genre?: string;
++  /** Música tocada ao clicar no artista. */
++  topTrackId: number;
++}
+diff --git a/src/app/core/repositories/museum.repository.ts b/src/app/core/repositories/museum.repository.ts
+new file mode 100644
+index 0000000..9b6b9c8
+--- /dev/null
++++ b/src/app/core/repositories/museum.repository.ts
+@@ -0,0 +1,22 @@
++import { Injectable } from '@angular/core';
++import { ApiClient } from '../api/api-client.service';
++import { ENDPOINTS } from '../api/endpoints';
++import { AtividadeDto, MuseuDto, SalaDto } from '../models/dto';
++
++/** Eventos (atividade), dados do museu e salas. Todas as rotas são PLANEJADAS no backend. */
++@Injectable({ providedIn: 'root' })
++export class MuseumRepository {
++  constructor(private readonly api: ApiClient) {}
++
++  listActivities(): Promise<AtividadeDto[]> {
++    return this.api.list<AtividadeDto>(ENDPOINTS.atividades);
++  }
++
++  getMuseum(): Promise<MuseuDto> {
++    return this.api.get<MuseuDto>(ENDPOINTS.museu);
++  }
++
++  listRooms(): Promise<SalaDto[]> {
++    return this.api.list<SalaDto>(ENDPOINTS.salas);
++  }
++}
+diff --git a/src/app/core/services/home.service.ts b/src/app/core/services/home.service.ts
+new file mode 100644
+index 0000000..8e6dc71
+--- /dev/null
++++ b/src/app/core/services/home.service.ts
+@@ -0,0 +1,105 @@
++import { computed, Injectable, signal } from '@angular/core';
++import { toApiError } from '../api/api-error';
++import { toEvent, toMuseum, toRoom } from '../mappers/event.mapper';
++import { ArtistSummary, Museum, MuseumEvent, MuseumRoom } from '../models/event.model';
++import { Track } from '../models/track.model';
++import { MuseumRepository } from '../repositories/museum.repository';
++import { CatalogService, LoadStatus } from './catalog.service';
++import { LibraryService } from './library.service';
++
++const ARTISTS_SHOWN = 6;
++const SELECTION_SHOWN = 10;
++
++/** Estado da tela inicial: eventos (atividade), artistas, seleção do acervo e dados do museu. */
++@Injectable({ providedIn: 'root' })
++export class HomeService {
++  readonly status = signal<LoadStatus>('idle');
++  readonly error = signal<string | null>(null);
++
++  readonly events = signal<MuseumEvent[]>([]);
++  readonly museum = signal<Museum | null>(null);
++  readonly rooms = signal<MuseumRoom[]>([]);
++  private loading?: Promise<void>;
++
++  /** Artistas ligados a músicas (musica_artista), os mais ouvidos primeiro. */
++  readonly artistsAll = computed<ArtistSummary[]>(() => {
++    // posição de cada música no ranking de mais ouvidas; quem não foi ouvida fica no fim
++    const rank = new Map(this.library.mostPlayedAll().map((t, i) => [t.id, i]));
++    const byArtist = new Map<number, { summary: ArtistSummary; best: number }>();
++
++    for (const track of this.catalog.tracks()) {
++      const position = rank.get(track.id) ?? Number.MAX_SAFE_INTEGER;
++      for (const artist of track.artists) {
++        const entry = byArtist.get(artist.id);
++        if (!entry) {
++          byArtist.set(artist.id, {
++            best: position,
++            summary: { id: artist.id, name: artist.name, photoUrl: artist.photoUrl, trackCount: 1, genre: track.genre, topTrackId: track.id },
++          });
++        } else {
++          entry.summary.trackCount++;
++          if (position < entry.best) {
++            entry.best = position;
++            entry.summary.topTrackId = track.id;
++            entry.summary.genre = track.genre ?? entry.summary.genre;
++          }
++        }
++      }
++    }
++    return [...byArtist.values()]
++      .sort((a, b) => a.best - b.best || b.summary.trackCount - a.summary.trackCount || a.summary.name.localeCompare(b.summary.name))
++      .map((e) => e.summary);
++  });
++  readonly artists = computed(() => this.artistsAll().slice(0, ARTISTS_SHOWN));
++
++  /** Seleção do acervo: o catálogo com a busca e o filtro de formato aplicados. */
++  readonly selectionAll = computed<Track[]>(() => this.library.visible(this.catalog.tracks()));
++  readonly selection = computed(() => this.selectionAll().slice(0, SELECTION_SHOWN));
++
++  readonly totalCapacity = computed(() => this.rooms().reduce((sum, r) => sum + (r.capacity ?? 0), 0));
++
++  constructor(
++    private readonly catalog: CatalogService,
++    private readonly library: LibraryService,
++    private readonly repository: MuseumRepository,
++  ) {}
++
++  load(): Promise<void> {
++    return (this.loading ??= this.fetch());
++  }
++
++  async reload(): Promise<void> {
++    this.loading = undefined;
++    await this.library.reload();
++    return this.load();
++  }
++
++  private async fetch(): Promise<void> {
++    this.status.set('loading');
++    this.error.set(null);
++    // o catálogo e a biblioteca falham a tela toda; eventos e museu são opcionais (rotas ainda planejadas)
++    const optional = <T>(request: Promise<T>) => request.then((v) => v, () => null);
++    try {
++      const [, activities, museum, rooms] = await Promise.all([
++        this.library.load(),
++        optional(this.repository.listActivities()),
++        optional(this.repository.getMuseum()),
++        optional(this.repository.listRooms()),
++      ]);
++      if (this.library.status() === 'error') throw new Error(this.library.error() ?? 'Erro ao carregar o acervo');
++
++      this.events.set(
++        (activities ?? [])
++          .map(toEvent)
++          .sort((a, b) => (a.startDate?.getTime() ?? Infinity) - (b.startDate?.getTime() ?? Infinity)),
++      );
++      this.museum.set(museum ? toMuseum(museum) : null);
++      this.rooms.set((rooms ?? []).map(toRoom));
++      this.status.set('ready');
++    } catch (e) {
++      this.loading = undefined;
++      this.error.set(toApiError(e).message);
++      this.status.set('error');
++    }
++  }
++}
+diff --git a/src/app/core/services/library.service.ts b/src/app/core/services/library.service.ts
+index d4f64c6..e55c666 100644
+--- a/src/app/core/services/library.service.ts
++++ b/src/app/core/services/library.service.ts
+@@ -128,7 +128,8 @@ export class LibraryService {
+     return ids.map((id) => this.catalog.byId(id)).filter((t): t is Track => !!t);
+   }
+ 
+-  private visible(tracks: Track[]): Track[] {
++  /** Aplica a busca e o filtro de formato atuais (usado também pela tela inicial). */
++  visible(tracks: Track[]): Track[] {
+     const q = normalize(this.query().trim());
+     const filter = this.filter();
+     return tracks.filter((t) => {
+diff --git a/src/app/core/utils/date-format.ts b/src/app/core/utils/date-format.ts
+new file mode 100644
+index 0000000..dc3541b
+--- /dev/null
++++ b/src/app/core/utils/date-format.ts
+@@ -0,0 +1,23 @@
++const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
++
++/** "YYYY-MM-DD" -> Date local (sem deslocamento de fuso). */
++export function parseDate(value: string | null | undefined): Date | undefined {
++  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
++  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : undefined;
++}
++
++const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' });
++const dayMonth = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' });
++const full = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
++
++/** "Quinta-feira • 05/11" */
++export function weekdayAndDate(date: Date): string {
++  return `${capitalize(weekday.format(date))} • ${dayMonth.format(date)}`;
++}
++
++/** "05/11 – 30/11/2026" (ou só "05/11/2026" quando não há fim). */
++export function dateRange(start?: Date, end?: Date): string {
++  if (!start) return '';
++  if (!end || end.getTime() === start.getTime()) return full.format(start);
++  return `${dayMonth.format(start)} – ${full.format(end)}`;
++}
+diff --git a/src/app/pages/coming-soon/coming-soon.component.ts b/src/app/pages/coming-soon/coming-soon.component.ts
+index 4d0d922..ebc59f4 100644
+--- a/src/app/pages/coming-soon/coming-soon.component.ts
++++ b/src/app/pages/coming-soon/coming-soon.component.ts
+@@ -1,7 +1,7 @@
+ import { ChangeDetectionStrategy, Component } from '@angular/core';
+ import { ActivatedRoute } from '@angular/router';
+ 
+-/** Tela provisória das seções que ainda não foram desenhadas (Descobrir, Instrumentos, Perfil). */
++/** Tela provisória das seções que ainda não foram desenhadas (Descobrir e Instrumentos). */
+ @Component({
+   selector: 'app-coming-soon',
+   standalone: false,
+diff --git a/src/app/pages/home/components/artist-avatar/artist-avatar.component.css b/src/app/pages/home/components/artist-avatar/artist-avatar.component.css
+new file mode 100644
+index 0000000..033dbe6
+--- /dev/null
++++ b/src/app/pages/home/components/artist-avatar/artist-avatar.component.css
+@@ -0,0 +1,105 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.artist {
++  width: 100%;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 0.2rem;
++  padding: 0;
++  border: 0;
++  background: none;
++  text-align: center;
++  color: var(--ink);
++  cursor: pointer;
++}
++
++.ring {
++  position: relative;
++  width: min(100%, 5.6rem);
++  aspect-ratio: 1;
++  margin-bottom: 0.4rem;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  border: 3px solid #3a3733;
++  background: linear-gradient(145deg, #2a2723, #14110e);
++  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
++  transition: transform 0.3s, box-shadow 0.3s;
++}
++.is-featured .ring {
++  border-color: var(--gold-500);
++  box-shadow: 0 0 0 3px var(--gold-100), 0 6px 14px rgba(138, 99, 30, 0.35);
++}
++.artist:hover .ring,
++.artist:focus-visible .ring {
++  transform: scale(1.06);
++}
++
++.ring img {
++  width: 100%;
++  height: 100%;
++  border-radius: 50%;
++  object-fit: cover;
++}
++.initials {
++  font: 600 1.35rem var(--font-title);
++  letter-spacing: 0.04em;
++  color: var(--gold-300);
++}
++.star {
++  position: absolute;
++  right: -0.1rem;
++  bottom: -0.1rem;
++  width: 1.5rem;
++  height: 1.5rem;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  background: var(--gold-500);
++  font-size: 0.75rem;
++  color: #1c1308;
++}
++
++.name {
++  max-width: 100%;
++  font: 600 0.95rem/1.2 var(--font-title);
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.genre {
++  font: 400 0.7rem var(--font-text);
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++  color: var(--muted);
++}
++.count {
++  display: none;
++  margin-top: 0.3rem;
++  padding: 0.15rem 0.6rem;
++  border-radius: 4px;
++  background: #e9e1d1;
++  font: 600 0.62rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #6b6154;
++}
++
++@media (min-width: 1024px) {
++  .ring {
++    width: min(100%, 7rem);
++  }
++  .initials {
++    font-size: 1.8rem;
++  }
++  .name {
++    font-size: 1.1rem;
++  }
++  .count {
++    display: inline-block;
++  }
++}
+diff --git a/src/app/pages/home/components/artist-avatar/artist-avatar.component.html b/src/app/pages/home/components/artist-avatar/artist-avatar.component.html
+new file mode 100644
+index 0000000..bd9019c
+--- /dev/null
++++ b/src/app/pages/home/components/artist-avatar/artist-avatar.component.html
+@@ -0,0 +1,18 @@
++<button type="button" class="artist" [class.is-featured]="featured()" (click)="choose.emit(artist())"
++        [attr.aria-label]="'Tocar ' + artist().name">
++  <span class="ring">
++    @if (artist().photoUrl) {
++      <img [src]="artist().photoUrl" [alt]="artist().name" />
++    } @else {
++      <span class="initials">{{ initials() }}</span>
++    }
++    @if (featured()) {
++      <span class="star" title="Mais ouvido">★</span>
++    }
++  </span>
++  <span class="name">{{ artist().name }}</span>
++  @if (artist().genre) {
++    <span class="genre">{{ artist().genre }}</span>
++  }
++  <span class="count">{{ count() }}</span>
++</button>
+diff --git a/src/app/pages/home/components/artist-avatar/artist-avatar.component.ts b/src/app/pages/home/components/artist-avatar/artist-avatar.component.ts
+new file mode 100644
+index 0000000..5a1d06e
+--- /dev/null
++++ b/src/app/pages/home/components/artist-avatar/artist-avatar.component.ts
+@@ -0,0 +1,25 @@
++import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
++import { ArtistSummary } from '../../../../core/models/event.model';
++
++/** Artista em círculo (foto_url ou iniciais). Clicar toca a música mais ouvida dele. */
++@Component({
++  selector: 'app-artist-avatar',
++  standalone: false,
++  templateUrl: './artist-avatar.component.html',
++  styleUrl: './artist-avatar.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class ArtistAvatarComponent {
++  readonly artist = input.required<ArtistSummary>();
++  /** Destaque (o artista mais ouvido): anel dourado e estrela. */
++  readonly featured = input(false);
++  readonly choose = output<ArtistSummary>();
++
++  protected readonly initials = computed(() =>
++    this.artist().name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''),
++  );
++  protected readonly count = computed(() => {
++    const n = this.artist().trackCount;
++    return `${n} ${n === 1 ? 'música' : 'músicas'}`;
++  });
++}
+diff --git a/src/app/pages/home/components/event-card/event-card.component.css b/src/app/pages/home/components/event-card/event-card.component.css
+new file mode 100644
+index 0000000..e7590de
+--- /dev/null
++++ b/src/app/pages/home/components/event-card/event-card.component.css
+@@ -0,0 +1,189 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.card {
++  position: relative;
++  display: grid;
++  overflow: hidden;
++  border-radius: 1.25rem;
++  border: 1px solid rgba(197, 154, 69, 0.35);
++  background: var(--gold-100);
++  box-shadow: 0 10px 24px rgba(60, 45, 20, 0.18);
++}
++
++/* arte decorativa: o banco não guarda imagem de evento */
++.art {
++  grid-area: 1 / 1;
++  position: relative;
++  min-height: 9.5rem;
++  background:
++    radial-gradient(circle at 78% 30%, rgba(197, 154, 69, 0.38), transparent 52%),
++    linear-gradient(135deg, #1d1610, #0d0a07);
++}
++.art::before {
++  content: '';
++  position: absolute;
++  inset: auto 0 0 0;
++  height: 45%;
++  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 0.9rem, transparent 0.9rem 1.8rem);
++  mask-image: linear-gradient(to top, #000, transparent);
++}
++.art::after {
++  content: '';
++  position: absolute;
++  top: -3rem;
++  right: -3rem;
++  width: 12rem;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  background: repeating-radial-gradient(circle, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 6px);
++}
++
++.chips {
++  grid-area: 1 / 1;
++  align-self: start;
++  z-index: 1;
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.5rem;
++  padding: 0.9rem;
++}
++
++.chip {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.45rem;
++  padding: 0.3rem 0.75rem;
++  border-radius: 999px;
++  font: 700 0.68rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  font-variant-numeric: tabular-nums;
++}
++.chip--status {
++  border: 1px solid rgba(197, 154, 69, 0.7);
++  background: rgba(20, 16, 10, 0.78);
++  color: var(--gold-300);
++}
++.chip--status::before {
++  content: '';
++  width: 0.5rem;
++  height: 0.5rem;
++  border-radius: 50%;
++  background: var(--gold-500);
++}
++.chip--extra {
++  display: none;
++}
++
++.info {
++  grid-area: 2 / 1;
++  padding: 1rem 1.15rem 1.2rem;
++  color: var(--ink);
++}
++.when {
++  margin: 0 0 0.25rem;
++  font: 500 0.7rem var(--font-text);
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++.title {
++  margin: 0;
++  font: 600 1.35rem/1.2 var(--font-title);
++}
++.text {
++  margin: 0.4rem 0 0;
++  font: 400 0.9rem/1.4 var(--font-text);
++  color: #6b6154;
++}
++
++.actions {
++  display: none;
++}
++.btn {
++  display: inline-flex;
++  align-items: center;
++  padding: 0.75rem 1.4rem;
++  border-radius: 999px;
++  border: 1px solid rgba(255, 255, 255, 0.35);
++  font: 700 0.75rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  text-decoration: none;
++  color: #fff;
++  transition: background 0.2s, transform 0.15s;
++}
++.btn:hover {
++  background: rgba(255, 255, 255, 0.12);
++}
++.btn--primary {
++  border-color: var(--gold-500);
++  background: var(--gold-500);
++  color: #1c1308;
++}
++.btn--primary:hover {
++  background: var(--gold-300);
++}
++
++/* ---------- desktop: destaque grande ---------- */
++@media (min-width: 1024px) {
++  .card {
++    min-height: 26rem;
++    border-color: transparent;
++    background: #120e0a;
++  }
++  .art {
++    min-height: 26rem;
++    background:
++      linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent 65%),
++      radial-gradient(circle at 78% 30%, rgba(197, 154, 69, 0.38), transparent 52%),
++      linear-gradient(135deg, #1d1610, #0d0a07);
++  }
++  .art::after {
++    top: -5rem;
++    right: -5rem;
++    width: 24rem;
++  }
++  .chips {
++    gap: 0.6rem;
++    padding: 1.4rem 2rem;
++  }
++  .chip--extra {
++    display: inline-flex;
++    border: 1px solid rgba(255, 255, 255, 0.25);
++    background: rgba(20, 16, 10, 0.55);
++    color: #fff;
++  }
++  .info {
++    grid-area: 1 / 1;
++    align-self: end;
++    z-index: 1;
++    max-width: 44rem;
++    padding: 2rem 2.2rem 2.2rem;
++    color: #fff;
++  }
++  .when {
++    color: var(--gold-300);
++  }
++  .title {
++    font-size: 2.7rem;
++    font-weight: 700;
++    line-height: 1.08;
++    color: #fff;
++  }
++  .text {
++    max-width: 36rem;
++    margin-top: 0.8rem;
++    font-size: 1rem;
++    color: rgba(255, 255, 255, 0.82);
++  }
++  .actions {
++    display: flex;
++    flex-wrap: wrap;
++    gap: 0.8rem;
++    margin-top: 1.5rem;
++  }
++}
+diff --git a/src/app/pages/home/components/event-card/event-card.component.html b/src/app/pages/home/components/event-card/event-card.component.html
+new file mode 100644
+index 0000000..d0db033
+--- /dev/null
++++ b/src/app/pages/home/components/event-card/event-card.component.html
+@@ -0,0 +1,38 @@
++<article class="card">
++  <div class="art" aria-hidden="true"></div>
++
++  <div class="chips">
++    @if (badge()) {
++      <span class="chip chip--status">{{ badge() }}</span>
++    }
++    @if (event().type) {
++      <span class="chip chip--extra">{{ event().type }}</span>
++    }
++    @if (period()) {
++      <span class="chip chip--extra">{{ period() }}</span>
++    }
++    @if (event().externalPlace) {
++      <span class="chip chip--extra">{{ event().externalPlace }}</span>
++    }
++  </div>
++
++  <div class="info">
++    @if (when()) {
++      <p class="when">{{ when() }}</p>
++    }
++    <h3 class="title">{{ event().title }}</h3>
++    @if (event().description) {
++      <p class="text">{{ event().description }}</p>
++    }
++    @if (event().contactEmail || event().contactPhone) {
++      <div class="actions">
++        @if (event().contactEmail) {
++          <a class="btn btn--primary" [href]="'mailto:' + event().contactEmail">Falar com a organização</a>
++        }
++        @if (event().contactPhone) {
++          <a class="btn" [href]="'tel:' + event().contactPhone">Ligar: {{ event().contactPhone }}</a>
++        }
++      </div>
++    }
++  </div>
++</article>
+diff --git a/src/app/pages/home/components/event-card/event-card.component.ts b/src/app/pages/home/components/event-card/event-card.component.ts
+new file mode 100644
+index 0000000..65b5fd4
+--- /dev/null
++++ b/src/app/pages/home/components/event-card/event-card.component.ts
+@@ -0,0 +1,29 @@
++import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
++import { MuseumEvent } from '../../../../core/models/event.model';
++import { dateRange, weekdayAndDate } from '../../../../core/utils/date-format';
++
++/**
++ * Evento do museu (`atividade`). No mobile é um cartão de carrossel; no desktop vira o destaque (hero).
++ * Só mostra o que existe no banco: status, sala, tipo, datas, descrição e contato.
++ */
++@Component({
++  selector: 'app-event-card',
++  standalone: false,
++  templateUrl: './event-card.component.html',
++  styleUrl: './event-card.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class EventCardComponent {
++  readonly event = input.required<MuseumEvent>();
++
++  /** "Em cartaz • Sala 02" */
++  protected readonly badge = computed(() => {
++    const e = this.event();
++    return [e.status, e.rooms.join(' / ')].filter(Boolean).join(' • ');
++  });
++  protected readonly when = computed(() => {
++    const start = this.event().startDate;
++    return start ? weekdayAndDate(start) : '';
++  });
++  protected readonly period = computed(() => dateRange(this.event().startDate, this.event().endDate));
++}
+diff --git a/src/app/pages/home/components/event-list/event-list.component.css b/src/app/pages/home/components/event-list/event-list.component.css
+new file mode 100644
+index 0000000..20ea779
+--- /dev/null
++++ b/src/app/pages/home/components/event-list/event-list.component.css
+@@ -0,0 +1,91 @@
++:host {
++  display: none;
++  min-width: 0;
++}
++
++@media (min-width: 1024px) {
++  :host {
++    display: block;
++  }
++}
++
++.head {
++  display: flex;
++  align-items: baseline;
++  justify-content: space-between;
++  margin-bottom: 0.9rem;
++}
++h3 {
++  margin: 0;
++  font: 700 0.75rem var(--font-text);
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: #6b6154;
++}
++.count {
++  font: 500 0.7rem var(--font-text);
++  color: var(--gold-700);
++}
++
++.list {
++  display: grid;
++  gap: 0.6rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.item {
++  width: 100%;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 1rem;
++  padding: 0.9rem 1.1rem;
++  border: 1px solid transparent;
++  border-radius: 1rem;
++  background: rgba(244, 239, 230, 0.8);
++  text-align: left;
++  color: var(--ink);
++  cursor: pointer;
++  transition: background 0.2s, border-color 0.2s;
++}
++.item:hover {
++  background: #eee5d3;
++}
++.item.is-active {
++  border-color: var(--gold-500);
++  background: #fff;
++  box-shadow: 0 6px 16px rgba(60, 45, 20, 0.1);
++}
++
++.item__text {
++  min-width: 0;
++  display: flex;
++  flex-direction: column;
++  gap: 0.15rem;
++}
++.item__when {
++  font: 700 0.65rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++.item__title {
++  font: 600 1.05rem/1.25 var(--font-title);
++}
++.item__desc {
++  font: 400 0.78rem var(--font-text);
++  color: var(--muted);
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.item svg {
++  width: 1.2rem;
++  flex: none;
++  color: var(--muted);
++}
++.item.is-active svg {
++  color: var(--gold-600);
++}
+diff --git a/src/app/pages/home/components/event-list/event-list.component.html b/src/app/pages/home/components/event-list/event-list.component.html
+new file mode 100644
+index 0000000..f284172
+--- /dev/null
++++ b/src/app/pages/home/components/event-list/event-list.component.html
+@@ -0,0 +1,24 @@
++<div class="head">
++  <h3>Próximos recitais &amp; sessões</h3>
++  <span class="count">{{ events().length }} {{ events().length === 1 ? 'evento' : 'eventos' }}</span>
++</div>
++
++<ul class="list">
++  @for (event of events(); track event.id; let i = $index) {
++    <li>
++      <button type="button" class="item" [class.is-active]="i === activeIndex()"
++              [attr.aria-current]="i === activeIndex() ? 'true' : null" (click)="choose.emit(i)">
++        <span class="item__text">
++          <span class="item__when">{{ when(event) }}</span>
++          <strong class="item__title">{{ event.title }}</strong>
++          @if (event.description) {
++            <small class="item__desc">{{ event.description }}</small>
++          }
++        </span>
++        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
++          <path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
++        </svg>
++      </button>
++    </li>
++  }
++</ul>
+diff --git a/src/app/pages/home/components/event-list/event-list.component.ts b/src/app/pages/home/components/event-list/event-list.component.ts
+new file mode 100644
+index 0000000..f3e5b15
+--- /dev/null
++++ b/src/app/pages/home/components/event-list/event-list.component.ts
+@@ -0,0 +1,21 @@
++import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++import { MuseumEvent } from '../../../../core/models/event.model';
++import { weekdayAndDate } from '../../../../core/utils/date-format';
++
++/** Lista "Próximos recitais & sessões" (só desktop): escolhe qual evento aparece no destaque. */
++@Component({
++  selector: 'app-event-list',
++  standalone: false,
++  templateUrl: './event-list.component.html',
++  styleUrl: './event-list.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class EventListComponent {
++  readonly events = input.required<MuseumEvent[]>();
++  readonly activeIndex = input(0);
++  readonly choose = output<number>();
++
++  protected when(event: MuseumEvent): string {
++    return event.startDate ? weekdayAndDate(event.startDate) : '';
++  }
++}
+diff --git a/src/app/pages/home/components/museum-banner/museum-banner.component.css b/src/app/pages/home/components/museum-banner/museum-banner.component.css
+new file mode 100644
+index 0000000..e2691ed
+--- /dev/null
++++ b/src/app/pages/home/components/museum-banner/museum-banner.component.css
+@@ -0,0 +1,107 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.banner {
++  display: grid;
++  gap: 1.5rem;
++  padding: 1.6rem 1.4rem;
++  margin-right: 1.5rem;
++  border-radius: 1.25rem;
++  background: linear-gradient(135deg, var(--blue-900), var(--blue-600));
++  color: #fff;
++  box-shadow: 0 14px 30px rgba(4, 19, 79, 0.28);
++}
++
++.eyebrow {
++  margin: 0 0 0.5rem;
++  font: 700 0.68rem var(--font-text);
++  letter-spacing: 0.22em;
++  text-transform: uppercase;
++  color: var(--gold-300);
++}
++h2 {
++  margin: 0;
++  font: 700 1.6rem/1.15 var(--font-title);
++}
++.text {
++  margin: 0.8rem 0 0;
++  font: 400 0.92rem/1.5 var(--font-text);
++  color: rgba(255, 255, 255, 0.82);
++}
++.address {
++  margin: 0.6rem 0 0;
++  font: 500 0.8rem var(--font-text);
++  color: var(--gold-200);
++}
++
++.rooms {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.5rem;
++  margin: 1.2rem 0 0;
++  padding: 0;
++  list-style: none;
++}
++.room {
++  display: inline-flex;
++  align-items: baseline;
++  gap: 0.5rem;
++  padding: 0.35rem 0.8rem;
++  border-radius: 999px;
++  border: 1px solid rgba(255, 255, 255, 0.28);
++  font: 600 0.78rem var(--font-text);
++}
++.room small {
++  font-weight: 400;
++  color: rgba(255, 255, 255, 0.7);
++}
++.total {
++  margin: 0.8rem 0 0;
++  font: 500 0.78rem var(--font-text);
++  color: rgba(255, 255, 255, 0.75);
++}
++
++.banner__actions {
++  display: grid;
++  gap: 0.8rem;
++  align-content: center;
++}
++.btn {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  padding: 0.95rem 1.4rem;
++  border-radius: 0.9rem;
++  border: 1px solid rgba(255, 255, 255, 0.3);
++  font: 700 0.78rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  text-decoration: none;
++  color: #fff;
++  transition: background 0.2s;
++}
++.btn:hover {
++  background: rgba(255, 255, 255, 0.12);
++}
++.btn--primary {
++  border-color: var(--gold-500);
++  background: var(--gold-500);
++  color: #1c1308;
++}
++.btn--primary:hover {
++  background: var(--gold-300);
++}
++
++@media (min-width: 1024px) {
++  .banner {
++    grid-template-columns: minmax(0, 1fr) 20rem;
++    gap: 3rem;
++    padding: 3rem 3.5rem;
++    margin-right: 0;
++  }
++  h2 {
++    font-size: 2.3rem;
++  }
++}
+diff --git a/src/app/pages/home/components/museum-banner/museum-banner.component.html b/src/app/pages/home/components/museum-banner/museum-banner.component.html
+new file mode 100644
+index 0000000..b62ab63
+--- /dev/null
++++ b/src/app/pages/home/components/museum-banner/museum-banner.component.html
+@@ -0,0 +1,36 @@
++<section class="banner">
++  <div class="banner__main">
++    <p class="eyebrow">Visitação física</p>
++    <h2>Visite o {{ museum().name }}</h2>
++    @if (museum().description) {
++      <p class="text">{{ museum().description }}</p>
++    }
++    @if (museum().address) {
++      <p class="address">{{ museum().address }}</p>
++    }
++
++    @if (rooms().length) {
++      <ul class="rooms" aria-label="Salas do museu">
++        @for (room of rooms(); track room.id) {
++          <li class="room">
++            {{ room.name }}@if (room.capacity) { <small>{{ room.capacity }} lugares</small> }
++          </li>
++        }
++      </ul>
++      @if (capacity() > 0) {
++        <p class="total">{{ rooms().length }} salas • capacidade total de {{ capacity() }} pessoas</p>
++      }
++    }
++  </div>
++
++  @if (museum().phone || museum().email) {
++    <div class="banner__actions">
++      @if (museum().phone) {
++        <a class="btn btn--primary" [href]="'tel:' + museum().phone">Ligar para o museu</a>
++      }
++      @if (museum().email) {
++        <a class="btn" [href]="'mailto:' + museum().email">Enviar e-mail</a>
++      }
++    </div>
++  }
++</section>
+diff --git a/src/app/pages/home/components/museum-banner/museum-banner.component.ts b/src/app/pages/home/components/museum-banner/museum-banner.component.ts
+new file mode 100644
+index 0000000..22594f1
+--- /dev/null
++++ b/src/app/pages/home/components/museum-banner/museum-banner.component.ts
+@@ -0,0 +1,16 @@
++import { ChangeDetectionStrategy, Component, input } from '@angular/core';
++import { Museum, MuseumRoom } from '../../../../core/models/event.model';
++
++/** Faixa "Visite o museu": dados do museu (`museu`) e salas (`sala`), com contato por telefone e e-mail. */
++@Component({
++  selector: 'app-museum-banner',
++  standalone: false,
++  templateUrl: './museum-banner.component.html',
++  styleUrl: './museum-banner.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class MuseumBannerComponent {
++  readonly museum = input.required<Museum>();
++  readonly rooms = input<MuseumRoom[]>([]);
++  readonly capacity = input(0);
++}
+diff --git a/src/app/pages/home/home.component.css b/src/app/pages/home/home.component.css
+new file mode 100644
+index 0000000..55b9186
+--- /dev/null
++++ b/src/app/pages/home/home.component.css
+@@ -0,0 +1,248 @@
++:host {
++  display: block;
++  flex: none;
++  max-width: 100%;
++  overflow-x: clip;
++}
++
++.page {
++  min-width: 0;
++  padding: 0.5rem 0 11rem max(1.5rem, env(safe-area-inset-left));
++}
++
++.sections {
++  display: grid;
++  /* minmax(0, 1fr): evita que os carrosséis estiquem a coluna e a página role na horizontal */
++  grid-template-columns: minmax(0, 1fr);
++  gap: 1.75rem;
++}
++.sections > * {
++  min-width: 0;
++}
++
++.empty {
++  grid-column: 1 / -1;
++  margin: 0;
++  padding: 1.5rem 0;
++  font: italic 400 1rem var(--font-text);
++  color: var(--muted);
++}
++
++.state {
++  margin: 1rem 1.5rem 1rem 0;
++  font: italic 400 1.05rem var(--font-text);
++  color: var(--muted);
++}
++.state button {
++  margin-top: 0.5rem;
++  padding: 0.4rem 1rem;
++  border: 1px solid var(--gold-500);
++  border-radius: 999px;
++  background: none;
++  font: 500 0.75rem var(--font-text);
++  color: var(--gold-700);
++  cursor: pointer;
++}
++
++/* ---------- mobile: cabeçalho ---------- */
++.mobile-head {
++  display: grid;
++  gap: 0.9rem;
++  padding: 0.75rem 1.5rem 1rem 0;
++}
++.mobile-head__row {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.75rem;
++}
++.brand {
++  display: flex;
++  align-items: center;
++  gap: 0.7rem;
++  min-width: 0;
++  text-decoration: none;
++  color: var(--ink);
++}
++.brand__logo {
++  width: 2.4rem;
++  height: 2.4rem;
++  flex: none;
++  border-radius: 50%;
++  object-fit: cover;
++}
++.brand__name {
++  font: 700 1.15rem/1.1 var(--font-title);
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++}
++.profile {
++  width: 2.6rem;
++  height: 2.6rem;
++  flex: none;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  background: rgba(236, 228, 220, 0.7);
++  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.45);
++  font: 700 0.8rem var(--font-text);
++  text-decoration: none;
++  color: var(--gold-700);
++}
++
++/* ---------- eventos ---------- */
++.events__stage {
++  display: grid;
++  gap: 1.5rem;
++}
++.events__slides {
++  display: flex;
++  gap: 1rem;
++  overflow-x: auto;
++  padding: 0.25rem 0 0.75rem;
++  overscroll-behavior-x: contain;
++  scroll-snap-type: x mandatory;
++  scrollbar-width: none;
++  -webkit-overflow-scrolling: touch;
++}
++.events__slides::-webkit-scrollbar {
++  display: none;
++}
++.slide {
++  flex: 0 0 100%;
++  scroll-snap-align: start;
++}
++
++.events__nav {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  margin-top: 0.4rem;
++}
++.dots {
++  display: flex;
++  gap: 0.55rem;
++}
++.dots__dot {
++  width: 0.7rem;
++  height: 0.7rem;
++  padding: 0;
++  border: 0;
++  border-radius: 999px;
++  background: #d9d0bd;
++  cursor: pointer;
++  transition: width 0.25s, background 0.25s;
++}
++.dots__dot.is-active {
++  background: var(--gold-500);
++}
++.arrows {
++  display: none;
++}
++
++/* ---------- seleção do acervo ---------- */
++.pills {
++  display: flex;
++  max-width: 100%;
++  margin: 0 1.5rem 1.2rem 0;
++  padding: 0.25rem;
++  overflow-x: auto;
++  scrollbar-width: none;
++  border-radius: 999px;
++  border: 1px solid #ded4c1;
++  background: #efe9dc;
++  width: fit-content;
++}
++.pills::-webkit-scrollbar {
++  display: none;
++}
++.pills button {
++  flex: none;
++  padding: 0.4rem 0.9rem;
++  border: 0;
++  border-radius: 999px;
++  background: none;
++  font: 400 0.75rem var(--font-text);
++  color: #6e6454;
++  cursor: pointer;
++  transition: color 0.2s, background 0.2s;
++}
++.pills button:hover {
++  color: #231f19;
++}
++.pills button.on {
++  background: #fff;
++  color: #29241e;
++  font-weight: 500;
++  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
++}
++
++/* ---------- desktop ---------- */
++@media (min-width: 1024px) {
++  .page {
++    max-width: 80rem;
++    margin: 0 auto;
++    padding: 2.5rem 1.5rem 8rem;
++  }
++  .sections {
++    gap: 3.5rem;
++  }
++  .mobile-head {
++    display: none;
++  }
++
++  .events__stage {
++    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
++    align-items: start;
++  }
++  /* no desktop só o evento escolhido aparece, e a lista ao lado troca o destaque */
++  .events__slides {
++    display: block;
++    overflow: visible;
++    padding: 0;
++  }
++  .slide {
++    display: none;
++  }
++  .slide.is-active {
++    display: block;
++  }
++
++  .events__nav {
++    justify-content: space-between;
++    margin-top: 1rem;
++  }
++  .dots__dot.is-active {
++    width: 2rem;
++  }
++  .arrows {
++    display: flex;
++    gap: 0.6rem;
++  }
++  .arrows button {
++    width: 2.4rem;
++    height: 2.4rem;
++    display: grid;
++    place-items: center;
++    padding: 0;
++    border: 0;
++    border-radius: 50%;
++    background: #e9e1d1;
++    color: #4a4338;
++    cursor: pointer;
++    transition: background 0.2s;
++  }
++  .arrows button:hover {
++    background: var(--gold-200);
++  }
++  .arrows svg {
++    width: 1.1rem;
++  }
++
++  .pills {
++    margin: 0 0 1.4rem auto;
++  }
++  .pills button {
++    padding: 0.4rem 1rem;
++  }
++}
+diff --git a/src/app/pages/home/home.component.html b/src/app/pages/home/home.component.html
+new file mode 100644
+index 0000000..5ff81ce
+--- /dev/null
++++ b/src/app/pages/home/home.component.html
+@@ -0,0 +1,123 @@
++<div class="page">
++  <!-- mobile: marca, perfil e busca (no desktop isso fica no menu) -->
++  <header class="mobile-head">
++    <div class="mobile-head__row">
++      <a class="brand" routerLink="/inicio">
++        <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
++        <span class="brand__name">Museu da Música Itu</span>
++      </a>
++      <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
++    </div>
++    <app-search-field
++      placeholder="Buscar músicas, artistas ou gêneros..."
++      [value]="library.query()"
++      (valueChange)="onSearch($event)"
++    />
++  </header>
++
++  @if (home.status() === 'error') {
++    <div class="state">
++      <p>{{ home.error() }}</p>
++      <button type="button" (click)="home.reload()">Tentar novamente</button>
++    </div>
++  } @else if (home.status() === 'loading') {
++    <p class="state">Carregando o acervo…</p>
++  }
++
++  <div class="sections">
++    @if (home.events().length) {
++      <app-library-section
++        title="Eventos"
++        subtitle="Acervo vivo & homenagens especiais"
++        minItem="100%"
++        mobileItem="100%"
++      >
++        <div class="events">
++          <div class="events__stage">
++            <div class="events__slides" #slides (scroll)="onSlidesScroll()">
++              @for (event of home.events(); track event.id; let i = $index) {
++                <app-event-card class="slide" [class.is-active]="i === activeIndex()" [event]="event" />
++              }
++            </div>
++            <app-event-list
++              [events]="home.events()"
++              [activeIndex]="activeIndex()"
++              (choose)="selectEvent($event)"
++            />
++          </div>
++
++          @if (home.events().length > 1) {
++            <div class="events__nav">
++              <div class="dots" role="group" aria-label="Escolher evento">
++                @for (event of home.events(); track event.id; let i = $index) {
++                  <button
++                    type="button"
++                    class="dots__dot"
++                    [class.is-active]="i === activeIndex()"
++                    [attr.aria-label]="'Evento ' + (i + 1) + ': ' + event.title"
++                    [attr.aria-current]="i === activeIndex() ? 'true' : null"
++                    (click)="selectEvent(i)"
++                  ></button>
++                }
++              </div>
++              <div class="arrows">
++                <button type="button" aria-label="Evento anterior" (click)="stepEvent(-1)">
++                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19.5 12h-15m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
++                </button>
++                <button type="button" aria-label="Próximo evento" (click)="stepEvent(1)">
++                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
++                </button>
++              </div>
++            </div>
++          }
++        </div>
++      </app-library-section>
++    }
++
++    @if (home.artists().length) {
++      <app-library-section
++        title="Artistas"
++        [subtitle]="home.artistsAll().length + ' artistas catalogados'"
++        accent="blue"
++        minItem="9rem"
++        mobileItem="6.5rem"
++      >
++        @for (artist of home.artists(); track artist.id; let first = $first) {
++          <app-artist-avatar [artist]="artist" [featured]="first" (choose)="playArtist($event)" />
++        }
++      </app-library-section>
++    }
++
++    <div class="selection">
++      <div class="pills" role="group" aria-label="Filtrar por formato">
++        @for (f of filters; track f.id) {
++          <button
++            type="button"
++            [class.on]="library.filter() === f.id"
++            [attr.aria-pressed]="library.filter() === f.id"
++            (click)="library.filter.set(f.id)"
++          >
++            {{ f.label }}
++          </button>
++        }
++      </div>
++
++      <app-library-section
++        title="Seleção do Acervo"
++        subtitle="Músicas do museu"
++        minItem="12rem"
++        mobileItem="8rem"
++      >
++        @for (track of home.selection(); track track.id) {
++          <app-track-card [track]="track" (play)="playTrack($event)" />
++        } @empty {
++          <p class="empty">Nenhum item encontrado.</p>
++        }
++      </app-library-section>
++    </div>
++
++    @if (home.museum(); as museum) {
++      <app-museum-banner [museum]="museum" [rooms]="home.rooms()" [capacity]="home.totalCapacity()" />
++    }
++  </div>
++</div>
+diff --git a/src/app/pages/home/home.component.ts b/src/app/pages/home/home.component.ts
+new file mode 100644
+index 0000000..6e8c474
+--- /dev/null
++++ b/src/app/pages/home/home.component.ts
+@@ -0,0 +1,83 @@
++import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
++import { Router } from '@angular/router';
++import { ArtistSummary } from '../../core/models/event.model';
++import { Track } from '../../core/models/track.model';
++import { HomeService } from '../../core/services/home.service';
++import { FormatFilter, LibraryService } from '../../core/services/library.service';
++import { PlayerService } from '../../core/services/player.service';
++import { UserService } from '../../core/services/user.service';
++
++/**
++ * Tela "Início": eventos (atividade), artistas, seleção do acervo (musica) e dados do museu.
++ * Mobile: eventos em carrossel. Desktop: destaque + lista lateral.
++ */
++@Component({
++  selector: 'app-home',
++  standalone: false,
++  templateUrl: './home.component.html',
++  styleUrl: './home.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class HomeComponent implements OnInit {
++  protected readonly home = inject(HomeService);
++  protected readonly library = inject(LibraryService);
++  protected readonly user = inject(UserService);
++  private readonly player = inject(PlayerService);
++  private readonly router = inject(Router);
++
++  protected readonly filters: { id: FormatFilter; label: string }[] = [
++    { id: 'all', label: 'Todos os Formatos' },
++    { id: 'vinyl', label: 'Vinis' },
++    { id: 'cassette', label: 'Fitas K7' },
++    { id: 'cd', label: 'CDs' },
++  ];
++
++  private readonly slides = viewChild<ElementRef<HTMLElement>>('slides');
++  private readonly requestedIndex = signal(0);
++  /** Evento exibido (limitado ao tamanho da lista, que pode mudar ao recarregar). */
++  protected readonly activeIndex = computed(() =>
++    Math.min(this.requestedIndex(), Math.max(this.home.events().length - 1, 0)),
++  );
++  protected readonly initials = computed(() =>
++    this.user.name().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''),
++  );
++
++  ngOnInit(): void {
++    void this.home.load();
++  }
++
++  /** Carrossel mobile: o ponto ativo acompanha o scroll. */
++  protected onSlidesScroll(): void {
++    const el = this.slides()?.nativeElement;
++    if (el && el.clientWidth > 0) this.requestedIndex.set(Math.round(el.scrollLeft / el.clientWidth));
++  }
++
++  protected selectEvent(index: number): void {
++    this.requestedIndex.set(index);
++    const el = this.slides()?.nativeElement;
++    el?.scrollTo({ left: index * el.clientWidth, behavior: 'smooth' });
++  }
++
++  protected stepEvent(delta: number): void {
++    const total = this.home.events().length;
++    if (total > 0) this.selectEvent((this.activeIndex() + delta + total) % total);
++  }
++
++  protected onSearch(query: string): void {
++    this.library.query.set(query);
++  }
++
++  protected playTrack(track: Track): void {
++    this.open(track.id);
++  }
++
++  protected playArtist(artist: ArtistSummary): void {
++    this.open(artist.topTrackId);
++  }
++
++  /** Abre a tela Tocando já reproduzindo. */
++  private open(trackId: number): void {
++    void this.player.open(trackId, true);
++    void this.router.navigate(['/tocando', trackId]);
++  }
++}
+diff --git a/src/app/pages/home/home.module.ts b/src/app/pages/home/home.module.ts
+new file mode 100644
+index 0000000..2d65b11
+--- /dev/null
++++ b/src/app/pages/home/home.module.ts
+@@ -0,0 +1,24 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { RouterModule } from '@angular/router';
++import { SharedModule } from '../../shared/shared.module';
++import { TrackCardsModule } from '../library/components/track-cards.module';
++import { ArtistAvatarComponent } from './components/artist-avatar/artist-avatar.component';
++import { EventCardComponent } from './components/event-card/event-card.component';
++import { EventListComponent } from './components/event-list/event-list.component';
++import { MuseumBannerComponent } from './components/museum-banner/museum-banner.component';
++import { HomeComponent } from './home.component';
++
++/** Tela Início (eventos, artistas, seleção do acervo e museu), carregada sob demanda. */
++@NgModule({
++  declarations: [
++    HomeComponent, EventCardComponent, EventListComponent, ArtistAvatarComponent, MuseumBannerComponent,
++  ],
++  imports: [
++    CommonModule,
++    SharedModule,
++    TrackCardsModule,
++    RouterModule.forChild([{ path: '', component: HomeComponent }]),
++  ],
++})
++export class HomeModule {}
+diff --git a/src/app/pages/library/components/track-cards.module.ts b/src/app/pages/library/components/track-cards.module.ts
+new file mode 100644
+index 0000000..3db0b44
+--- /dev/null
++++ b/src/app/pages/library/components/track-cards.module.ts
+@@ -0,0 +1,23 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { SharedModule } from '../../../shared/shared.module';
++import { CassetteCardComponent } from './cassette-card/cassette-card.component';
++import { CdCardComponent } from './cd-card/cd-card.component';
++import { LibrarySectionComponent } from './library-section/library-section.component';
++import { TrackCardComponent } from './track-card/track-card.component';
++import { VinylCardComponent } from './vinyl-card/vinyl-card.component';
++import { VinylSleeveCardComponent } from './vinyl-sleeve-card/vinyl-sleeve-card.component';
++
++/**
++ * Cards de música (vinil, luva, fita K7 e CD) e a seção em carrossel/grade.
++ * Usados pelas telas Início e Perfil (Minha Biblioteca).
++ */
++@NgModule({
++  declarations: [
++    LibrarySectionComponent, TrackCardComponent,
++    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent, CdCardComponent,
++  ],
++  imports: [CommonModule, SharedModule],
++  exports: [LibrarySectionComponent, TrackCardComponent],
++})
++export class TrackCardsModule {}
+diff --git a/src/app/pages/library/library.component.ts b/src/app/pages/library/library.component.ts
+index 7edd1b1..1b46735 100644
+--- a/src/app/pages/library/library.component.ts
++++ b/src/app/pages/library/library.component.ts
+@@ -4,7 +4,7 @@ import { Track } from '../../core/models/track.model';
+ import { FormatFilter, LibraryService } from '../../core/services/library.service';
+ import { PlayerService } from '../../core/services/player.service';
+ 
+-/** Tela "Início" (Minha Biblioteca): mais ouvidas e recentes (historico_musica) e curtidas (musica_favorita). */
++/** Tela "Perfil" (Minha Biblioteca): mais ouvidas e recentes (historico_musica) e curtidas (musica_favorita). */
+ @Component({
+   selector: 'app-library',
+   standalone: false,
+diff --git a/src/app/pages/library/library.module.ts b/src/app/pages/library/library.module.ts
+index 8aaf5d0..f096c63 100644
+--- a/src/app/pages/library/library.module.ts
++++ b/src/app/pages/library/library.module.ts
+@@ -1,21 +1,12 @@
+ import { CommonModule } from '@angular/common';
+ import { NgModule } from '@angular/core';
+ import { RouterModule } from '@angular/router';
+-import { SharedModule } from '../../shared/shared.module';
+-import { CassetteCardComponent } from './components/cassette-card/cassette-card.component';
+-import { CdCardComponent } from './components/cd-card/cd-card.component';
+-import { LibrarySectionComponent } from './components/library-section/library-section.component';
+-import { TrackCardComponent } from './components/track-card/track-card.component';
+-import { VinylCardComponent } from './components/vinyl-card/vinyl-card.component';
+-import { VinylSleeveCardComponent } from './components/vinyl-sleeve-card/vinyl-sleeve-card.component';
++import { TrackCardsModule } from './components/track-cards.module';
+ import { LibraryComponent } from './library.component';
+ 
+-/** Tela Início (Minha Biblioteca), carregada sob demanda. */
++/** Tela Perfil (Minha Biblioteca), carregada sob demanda. */
+ @NgModule({
+-  declarations: [
+-    LibraryComponent, LibrarySectionComponent, TrackCardComponent,
+-    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent, CdCardComponent,
+-  ],
+-  imports: [CommonModule, SharedModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
++  declarations: [LibraryComponent],
++  imports: [CommonModule, TrackCardsModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
+ })
+ export class LibraryModule {}
+diff --git a/src/app/shared/search-field/search-field.component.css b/src/app/shared/search-field/search-field.component.css
+new file mode 100644
+index 0000000..99d746e
+--- /dev/null
++++ b/src/app/shared/search-field/search-field.component.css
+@@ -0,0 +1,34 @@
++:host {
++  display: block;
++}
++
++.search {
++  position: relative;
++  display: block;
++}
++
++.search svg {
++  position: absolute;
++  left: 0.9rem;
++  top: 50%;
++  width: 1rem;
++  translate: 0 -50%;
++  color: rgba(120, 110, 97, 0.8);
++}
++
++.search input {
++  width: 100%;
++  padding: 0.7rem 1rem 0.7rem 2.5rem;
++  border: 1px solid rgba(223, 210, 196, 0.8);
++  border-radius: 999px;
++  background: rgba(239, 233, 224, 0.8);
++  font: 400 0.85rem var(--font-text);
++  color: var(--ink);
++}
++
++.search input:focus {
++  outline: none;
++  background: #fff;
++  border-color: var(--gold-500);
++  box-shadow: 0 0 0 1px var(--gold-500);
++}
+diff --git a/src/app/shared/search-field/search-field.component.html b/src/app/shared/search-field/search-field.component.html
+new file mode 100644
+index 0000000..75be130
+--- /dev/null
++++ b/src/app/shared/search-field/search-field.component.html
+@@ -0,0 +1,7 @@
++<label class="search">
++  <span class="sr-only">{{ placeholder() }}</span>
++  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
++    <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round" />
++  </svg>
++  <input type="search" [placeholder]="placeholder()" [value]="value()" (input)="onInput($event)" />
++</label>
+diff --git a/src/app/shared/search-field/search-field.component.ts b/src/app/shared/search-field/search-field.component.ts
+new file mode 100644
+index 0000000..1ba0235
+--- /dev/null
++++ b/src/app/shared/search-field/search-field.component.ts
+@@ -0,0 +1,19 @@
++import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++
++/** Campo de busca em pílula (mesmo visual do cabeçalho mobile da Biblioteca). */
++@Component({
++  selector: 'app-search-field',
++  standalone: false,
++  templateUrl: './search-field.component.html',
++  styleUrl: './search-field.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class SearchFieldComponent {
++  readonly placeholder = input('Buscar...');
++  readonly value = input('');
++  readonly valueChange = output<string>();
++
++  protected onInput(event: Event): void {
++    this.valueChange.emit((event.target as HTMLInputElement).value);
++  }
++}
+diff --git a/src/app/shared/shared.module.ts b/src/app/shared/shared.module.ts
+index 435854e..9343105 100644
+--- a/src/app/shared/shared.module.ts
++++ b/src/app/shared/shared.module.ts
+@@ -2,12 +2,13 @@ import { CommonModule } from '@angular/common';
+ import { NgModule } from '@angular/core';
+ import { CassetteTapeComponent } from './cassette-tape/cassette-tape.component';
+ import { CdDiscComponent } from './cd-disc/cd-disc.component';
++import { SearchFieldComponent } from './search-field/search-field.component';
+ import { VinylDiscComponent } from './vinyl-disc/vinyl-disc.component';
+ 
+-/** Disco de vinil, CD e fita K7: usados na biblioteca, no player e no mini player. */
++/** Disco de vinil, CD, fita K7 e campo de busca: usados em várias telas. */
+ @NgModule({
+-  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent],
++  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent],
+   imports: [CommonModule],
+-  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent],
++  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent],
+ })
+ export class SharedModule {}

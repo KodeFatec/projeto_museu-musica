@@ -4,7 +4,7 @@ import { Track } from '../../core/models/track.model';
 import { FormatFilter, LibraryService } from '../../core/services/library.service';
 import { PlayerService } from '../../core/services/player.service';
 
-/** Tela "Início" (Minha Biblioteca): mais ouvidas e recentes (historico_musica) e curtidas (musica_favorita). */
+/** Tela "Perfil" (Minha Biblioteca): mais ouvidas e recentes (historico_musica) e curtidas (musica_favorita). */
 @Component({
   selector: 'app-library',
   standalone: false,

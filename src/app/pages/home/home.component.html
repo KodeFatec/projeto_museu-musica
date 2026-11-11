@@ -1,0 +1,120 @@
+<div class="page">
+  <!-- mobile: marca, perfil e busca (no desktop isso fica no menu) -->
+  <header class="mobile-head">
+    <div class="mobile-head__row">
+      <a class="brand" routerLink="/inicio">
+        <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
+        <span class="brand__name">Museu da Música Itu</span>
+      </a>
+      <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
+    </div>
+    <app-search-field
+      placeholder="Buscar músicas, artistas ou gêneros..."
+      [value]="library.query()"
+      (valueChange)="onSearch($event)"
+    />
+  </header>
+
+  @if (home.status() === 'error') {
+    <div class="state">
+      <p>{{ home.error() }}</p>
+      <button type="button" (click)="home.reload()">Tentar novamente</button>
+    </div>
+  } @else if (home.status() === 'loading') {
+    <p class="state">Carregando o acervo…</p>
+  }
+
+  <div class="sections">
+    @if (home.events().length) {
+      <app-library-section
+        title="Eventos"
+        minItem="100%"
+        mobileItem="100%"
+      >
+        <div class="events">
+          <div class="events__stage">
+            <div class="events__slides" #slides (scroll)="onSlidesScroll()">
+              @for (event of home.events(); track event.id; let i = $index) {
+                <app-event-card class="slide" [class.is-active]="i === activeIndex()" [event]="event" />
+              }
+            </div>
+            <app-event-list
+              [events]="home.events()"
+              [activeIndex]="activeIndex()"
+              (choose)="selectEvent($event)"
+            />
+          </div>
+
+          @if (home.events().length > 1) {
+            <div class="events__nav">
+              <div class="dots" role="group" aria-label="Escolher evento">
+                @for (event of home.events(); track event.id; let i = $index) {
+                  <button
+                    type="button"
+                    class="dots__dot"
+                    [class.is-active]="i === activeIndex()"
+                    [attr.aria-label]="'Evento ' + (i + 1) + ': ' + event.title"
+                    [attr.aria-current]="i === activeIndex() ? 'true' : null"
+                    (click)="selectEvent(i)"
+                  ></button>
+                }
+              </div>
+              <div class="arrows">
+                <button type="button" aria-label="Evento anterior" (click)="stepEvent(-1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19.5 12h-15m0 0 6-6m-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+                <button type="button" aria-label="Próximo evento" (click)="stepEvent(1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </app-library-section>
+    }
+
+    @if (home.artists().length) {
+      <app-library-section
+        title="Artistas"
+        accent="blue"
+        minItem="9rem"
+        mobileItem="6.5rem"
+      >
+        @for (artist of home.artists(); track artist.id; let first = $first) {
+          <app-artist-avatar [artist]="artist" [featured]="first" (choose)="playArtist($event)" />
+        }
+      </app-library-section>
+    }
+
+    <div class="selection">
+      <div class="pills" role="group" aria-label="Filtrar por formato">
+        @for (f of filters; track f.id) {
+          <button
+            type="button"
+            [class.on]="library.filter() === f.id"
+            [attr.aria-pressed]="library.filter() === f.id"
+            (click)="library.filter.set(f.id)"
+          >
+            {{ f.label }}
+          </button>
+        }
+      </div>
+
+      <app-library-section
+        title="Seleção do Acervo"
+        minItem="12rem"
+        mobileItem="8rem"
+      >
+        @for (track of home.selection(); track track.id) {
+          <app-track-card [track]="track" (play)="playTrack($event)" />
+        } @empty {
+          <p class="empty">Nenhum item encontrado.</p>
+        }
+      </app-library-section>
+    </div>
+
+    @if (home.museum(); as museum) {
+      <app-museum-banner [museum]="museum" [rooms]="home.rooms()" [capacity]="home.totalCapacity()" />
+    }
+  </div>
+</div>

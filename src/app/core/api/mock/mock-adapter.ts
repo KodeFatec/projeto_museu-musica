@@ -46,6 +46,8 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     musicas: { rows: () => db.musicas as unknown as Row[], idKey: 'id_musica' },
     artistas: { rows: () => db.artistas as unknown as Row[], idKey: 'id_artista' },
     generos: { rows: () => db.generos as unknown as Row[], idKey: 'id_genero' },
+    atividades: { rows: () => db.atividades as unknown as Row[], idKey: 'id_atividade' },
+    salas: { rows: () => db.salas as unknown as Row[], idKey: 'id_sala' },
     'musica-artista': {
       rows: () => filterBy(db.musicaArtista as unknown as Row[], 'id_musica', query['id_musica']),
       idKey: 'id_musica',
@@ -122,6 +124,9 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       dados: row,
     });
   }
+
+  // --- museu (rota planejada): um único registro
+  if (resource === 'museu' && method === 'get') return respond(config, db.museu);
 
   // --- leitura genérica
   const table = tables[resource];

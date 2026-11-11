@@ -12,4 +12,7 @@ export const ENDPOINTS = {
   generos: '/generos', // PLANEJADA
   musicaArtista: '/musica-artista', // PLANEJADA
   usuarios: '/usuarios', // PLANEJADA
+  atividades: '/atividades', // PLANEJADA
+  museu: '/museu', // PLANEJADA
+  salas: '/salas', // PLANEJADA
 } as const;

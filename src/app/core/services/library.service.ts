@@ -128,7 +128,8 @@ export class LibraryService {
     return ids.map((id) => this.catalog.byId(id)).filter((t): t is Track => !!t);
   }
 
-  private visible(tracks: Track[]): Track[] {
+  /** Aplica a busca e o filtro de formato atuais (usado também pela tela inicial). */
+  visible(tracks: Track[]): Track[] {
     const q = normalize(this.query().trim());
     const filter = this.filter();
     return tracks.filter((t) => {

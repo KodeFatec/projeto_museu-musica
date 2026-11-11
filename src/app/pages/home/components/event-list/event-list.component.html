@@ -1,0 +1,24 @@
+<div class="head">
+  <h3>Próximos recitais &amp; sessões</h3>
+  <span class="count">{{ events().length }} {{ events().length === 1 ? 'evento' : 'eventos' }}</span>
+</div>
+
+<ul class="list">
+  @for (event of events(); track event.id; let i = $index) {
+    <li>
+      <button type="button" class="item" [class.is-active]="i === activeIndex()"
+              [attr.aria-current]="i === activeIndex() ? 'true' : null" (click)="choose.emit(i)">
+        <span class="item__text">
+          <span class="item__when">{{ when(event) }}</span>
+          <strong class="item__title">{{ event.title }}</strong>
+          @if (event.description) {
+            <small class="item__desc">{{ event.description }}</small>
+          }
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </li>
+  }
+</ul>

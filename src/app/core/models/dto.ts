@@ -107,3 +107,44 @@ export interface PerfilUsuarioDto {
   id_perfil: number;
   nome: string;
 }
+
+/**
+ * Tabela `atividade` — GET /api/atividades (PLANEJADA).
+ * Além das colunas, a API deve devolver `salas` (JOIN `atividade_sala` + `sala`), para evitar uma chamada por evento.
+ */
+export interface AtividadeDto {
+  id_atividade: number;
+  id_museu: number;
+  id_destino: number | null;
+  titulo: string;
+  descricao: string | null;
+  tipo_atividade: string | null;
+  /** "YYYY-MM-DD" */
+  data_inicio: string | null;
+  data_fim_prevista: string | null;
+  data_fim_real: string | null;
+  status: string | null;
+  local_externo: string | null;
+  email_contato: string | null;
+  telefone_contato: string | null;
+  salas?: { id_sala: number; nome: string }[];
+}
+
+/** Tabela `museu` — GET /api/museu (PLANEJADA): devolve o museu cadastrado. */
+export interface MuseuDto {
+  id_museu: number;
+  nome: string;
+  descricao: string | null;
+  endereco: string | null;
+  telefone: string | null;
+  email: string | null;
+}
+
+/** Tabela `sala` — GET /api/salas (PLANEJADA). */
+export interface SalaDto {
+  id_sala: number;
+  id_museu: number;
+  nome: string;
+  descricao: string | null;
+  capacidade: number | null;
+}

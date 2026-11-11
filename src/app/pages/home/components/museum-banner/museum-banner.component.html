@@ -1,0 +1,36 @@
+<section class="banner">
+  <div class="banner__main">
+    <p class="eyebrow">Visitação física</p>
+    <h2>Visite o {{ museum().name }}</h2>
+    @if (museum().description) {
+      <p class="text">{{ museum().description }}</p>
+    }
+    @if (museum().address) {
+      <p class="address">{{ museum().address }}</p>
+    }
+
+    <!-- @if (rooms().length) {
+      <ul class="rooms" aria-label="Salas do museu">
+        @for (room of rooms(); track room.id) {
+          <li class="room">
+            {{ room.name }}@if (room.capacity) { <small>{{ room.capacity }} lugares</small> }
+          </li>
+        }
+      </ul>
+      @if (capacity() > 0) {
+        <p class="total">{{ rooms().length }} salas • capacidade total de {{ capacity() }} pessoas</p>
+      }
+    } -->
+  </div>
+
+  @if (museum().phone || museum().email) {
+    <div class="banner__actions">
+      @if (museum().phone) {
+        <a class="btn btn--primary" [href]="'tel:' + museum().phone">Ligar para o museu</a>
+      }
+      @if (museum().email) {
+        <a class="btn" [href]="'mailto:' + museum().email">Enviar e-mail</a>
+      }
+    </div>
+  }
+</section>

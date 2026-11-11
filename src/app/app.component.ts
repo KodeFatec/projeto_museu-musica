@@ -31,9 +31,10 @@ export class AppComponent implements OnInit {
     void this.library.load();
   }
 
-  /** A busca do menu filtra a biblioteca; fora do Início, leva para lá. */
+  /** A busca do menu filtra o acervo; fora do Início e do Perfil, leva para o Início. */
   protected onSearch(query: string): void {
     this.library.query.set(query);
-    if (!this.router.url.startsWith('/inicio')) void this.router.navigate(['/inicio']);
+    const url = this.router.url;
+    if (!url.startsWith('/inicio') && !url.startsWith('/perfil')) void this.router.navigate(['/inicio']);
   }
 }

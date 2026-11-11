@@ -1,0 +1,248 @@
+:host {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.page {
+  min-width: 0;
+  padding: 0.5rem 0 11rem max(1.5rem, env(safe-area-inset-left));
+}
+
+.sections {
+  display: grid;
+  /* minmax(0, 1fr): evita que os carrosséis estiquem a coluna e a página role na horizontal */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+}
+.sections > * {
+  min-width: 0;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 1.5rem 0;
+  font: italic 400 1rem var(--font-text);
+  color: var(--muted);
+}
+
+.state {
+  margin: 1rem 1.5rem 1rem 0;
+  font: italic 400 1.05rem var(--font-text);
+  color: var(--muted);
+}
+.state button {
+  margin-top: 0.5rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--gold-500);
+  border-radius: 999px;
+  background: none;
+  font: 500 0.75rem var(--font-text);
+  color: var(--gold-700);
+  cursor: pointer;
+}
+
+/* ---------- mobile: cabeçalho ---------- */
+.mobile-head {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.75rem 1.5rem 1rem 0;
+}
+.mobile-head__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--ink);
+}
+.brand__logo {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.brand__name {
+  font: 700 1.15rem/1.1 var(--font-title);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.profile {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(236, 228, 220, 0.7);
+  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.45);
+  font: 700 0.8rem var(--font-text);
+  text-decoration: none;
+  color: var(--gold-700);
+}
+
+/* ---------- eventos ---------- */
+.events__stage {
+  display: grid;
+  gap: 1.5rem;
+}
+.events__slides {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.25rem 0 0.75rem;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.events__slides::-webkit-scrollbar {
+  display: none;
+}
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.events__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+.dots {
+  display: flex;
+  gap: 0.55rem;
+}
+.dots__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #d9d0bd;
+  cursor: pointer;
+  transition: width 0.25s, background 0.25s;
+}
+.dots__dot.is-active {
+  background: var(--gold-500);
+}
+.arrows {
+  display: none;
+}
+
+/* ---------- seleção do acervo ---------- */
+.pills {
+  display: flex;
+  max-width: 100%;
+  margin: 0 1.5rem 1.2rem 0;
+  padding: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 999px;
+  border: 1px solid #ded4c1;
+  background: #efe9dc;
+  width: fit-content;
+}
+.pills::-webkit-scrollbar {
+  display: none;
+}
+.pills button {
+  flex: none;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: 400 0.75rem var(--font-text);
+  color: #6e6454;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.pills button:hover {
+  color: #231f19;
+}
+.pills button.on {
+  background: #fff;
+  color: #29241e;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- desktop ---------- */
+@media (min-width: 1024px) {
+  .page {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 8rem;
+  }
+  .sections {
+    gap: 3.5rem;
+  }
+  .mobile-head {
+    display: none;
+  }
+
+  .events__stage {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  /* no desktop só o evento escolhido aparece, e a lista ao lado troca o destaque */
+  .events__slides {
+    display: block;
+    overflow: visible;
+    padding: 0;
+  }
+  .slide {
+    display: none;
+  }
+  .slide.is-active {
+    display: block;
+  }
+
+  .events__nav {
+    justify-content: space-between;
+    margin-top: 1rem;
+  }
+  .dots__dot.is-active {
+    width: 2rem;
+  }
+  .arrows {
+    display: flex;
+    gap: 0.6rem;
+  }
+  .arrows button {
+    width: 2.4rem;
+    height: 2.4rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #e9e1d1;
+    color: #4a4338;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .arrows button:hover {
+    background: var(--gold-200);
+  }
+  .arrows svg {
+    width: 1.1rem;
+  }
+
+  .pills {
+    margin: 0 0 1.4rem auto;
+  }
+  .pills button {
+    padding: 0.4rem 1rem;
+  }
+}

@@ -1,21 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { SharedModule } from '../../shared/shared.module';
-import { CassetteCardComponent } from './components/cassette-card/cassette-card.component';
-import { CdCardComponent } from './components/cd-card/cd-card.component';
-import { LibrarySectionComponent } from './components/library-section/library-section.component';
-import { TrackCardComponent } from './components/track-card/track-card.component';
-import { VinylCardComponent } from './components/vinyl-card/vinyl-card.component';
-import { VinylSleeveCardComponent } from './components/vinyl-sleeve-card/vinyl-sleeve-card.component';
+import { TrackCardsModule } from './components/track-cards.module';
 import { LibraryComponent } from './library.component';
 
-/** Tela Início (Minha Biblioteca), carregada sob demanda. */
+/** Tela Perfil (Minha Biblioteca), carregada sob demanda. */
 @NgModule({
-  declarations: [
-    LibraryComponent, LibrarySectionComponent, TrackCardComponent,
-    VinylCardComponent, VinylSleeveCardComponent, CassetteCardComponent, CdCardComponent,
-  ],
-  imports: [CommonModule, SharedModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
+  declarations: [LibraryComponent],
+  imports: [CommonModule, TrackCardsModule, RouterModule.forChild([{ path: '', component: LibraryComponent }])],
 })
 export class LibraryModule {}

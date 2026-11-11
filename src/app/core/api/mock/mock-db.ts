@@ -1,13 +1,16 @@
 import {
   ArtistaDto,
+  AtividadeDto,
   GeneroMusicalDto,
   HistoricoMusicaDto,
   LetraTrechoDto,
   MusicaArtistaDto,
   MusicaDto,
   MusicaFavoritaDto,
+  MuseuDto,
   PartituraDto,
   PerfilUsuarioDto,
+  SalaDto,
   UsuarioDto,
 } from '../../models/dto';
 
@@ -248,3 +251,44 @@ historico.forEach((h, i) => {
   if (h.id_musica >= 6 && h.id_musica <= 9)
     h.data_reproducao = `2026-10-24 ${22 - (h.id_musica - 6)}:10:00`;
 });
+
+// ---------- Museu, salas e atividades (eventos) ----------
+export const museu: MuseuDto = {
+  id_museu: 1,
+  nome: 'Museu da Música de Itu',
+  descricao: 'Acervo de instrumentos, partituras e gravações históricas, com salas de escuta e programação de eventos.',
+  endereco: 'Itu — SP',
+  telefone: '(11) 0000-0000',
+  email: 'contato@museu.example',
+};
+
+export const salas: SalaDto[] = [
+  { id_sala: 1, id_museu: 1, nome: 'Sala 01', descricao: null, capacidade: 20 },
+  { id_sala: 2, id_museu: 1, nome: 'Sala 02', descricao: 'Salão Nobre', capacidade: 40 },
+  { id_sala: 3, id_museu: 1, nome: 'Sala 03', descricao: null, capacidade: 15 },
+  { id_sala: 4, id_museu: 1, nome: 'Sala 04', descricao: null, capacidade: 30 },
+];
+
+const atividade = (
+  id_atividade: number,
+  titulo: string,
+  descricao: string,
+  tipo_atividade: string,
+  status: string,
+  data_inicio: string,
+  data_fim_prevista: string,
+  idSala: number,
+): AtividadeDto => ({
+  id_atividade, id_museu: 1, id_destino: null, titulo, descricao, tipo_atividade, status,
+  data_inicio, data_fim_prevista, data_fim_real: null, local_externo: null,
+  email_contato: 'contato@museu.example', telefone_contato: '(11) 0000-0000',
+  salas: salas.filter((s) => s.id_sala === idSala).map((s) => ({ id_sala: s.id_sala, nome: s.nome })),
+});
+
+export const atividades: AtividadeDto[] = [
+  atividade(1, 'Saraus e Recitais ao Piano de Cauda', 'Raridades gravadas ao vivo no Salão Nobre, em fitas originais de 1974.', 'Audição comentada', 'Em cartaz', '2026-11-05', '2026-11-30', 2),
+  atividade(2, 'Noite da Tropicália 1968', 'Fitas de ensaio dos festivais da Record.', 'Sessão de escuta', 'Agendada', '2026-11-13', '2026-11-13', 4),
+  atividade(3, 'Matrizes Raras de Bossa Nova', 'Prensagens mono originais da Odeon, de 1958.', 'Exposição', 'Agendada', '2026-11-14', '2026-11-14', 1),
+  atividade(4, 'O Som de Bobina: Pink Floyd 1973', 'Master cut em 4 pistas dos estúdios de Abbey Road.', 'Sessão de escuta', 'Agendada', '2026-11-15', '2026-11-15', 3),
+  atividade(5, 'Clube da Esquina: Gravações Noturnas', 'Voz e violão isolados em fita Scotch.', 'Recital', 'Agendada', '2026-11-17', '2026-11-17', 2),
+];

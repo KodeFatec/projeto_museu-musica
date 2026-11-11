@@ -1,0 +1,189 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(197, 154, 69, 0.35);
+  background: var(--gold-100);
+  box-shadow: 0 10px 24px rgba(60, 45, 20, 0.18);
+}
+
+/* arte decorativa: o banco não guarda imagem de evento */
+.art {
+  grid-area: 1 / 1;
+  position: relative;
+  min-height: 9.5rem;
+  background:
+    radial-gradient(circle at 78% 30%, rgba(197, 154, 69, 0.38), transparent 52%),
+    linear-gradient(135deg, #1d1610, #0d0a07);
+}
+.art::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 45%;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.09) 0 0.9rem, transparent 0.9rem 1.8rem);
+  mask-image: linear-gradient(to top, #000, transparent);
+}
+.art::after {
+  content: '';
+  position: absolute;
+  top: -3rem;
+  right: -3rem;
+  width: 12rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 6px);
+}
+
+.chips {
+  grid-area: 1 / 1;
+  align-self: start;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.9rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font: 700 0.68rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.chip--status {
+  border: 1px solid rgba(197, 154, 69, 0.7);
+  background: rgba(20, 16, 10, 0.78);
+  color: var(--gold-300);
+}
+.chip--status::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--gold-500);
+}
+.chip--extra {
+  display: none;
+}
+
+.info {
+  grid-area: 2 / 1;
+  padding: 1rem 1.15rem 1.2rem;
+  color: var(--ink);
+}
+.when {
+  margin: 0 0 0.25rem;
+  font: 500 0.7rem var(--font-text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-700);
+}
+.title {
+  margin: 0;
+  font: 600 1.35rem/1.2 var(--font-title);
+}
+.text {
+  margin: 0.4rem 0 0;
+  font: 400 0.9rem/1.4 var(--font-text);
+  color: #6b6154;
+}
+
+.actions {
+  display: none;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font: 700 0.75rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.btn--primary {
+  border-color: var(--gold-500);
+  background: var(--gold-500);
+  color: #1c1308;
+}
+.btn--primary:hover {
+  background: var(--gold-300);
+}
+
+/* ---------- desktop: destaque grande ---------- */
+@media (min-width: 1024px) {
+  .card {
+    min-height: 26rem;
+    border-color: transparent;
+    background: #120e0a;
+  }
+  .art {
+    min-height: 26rem;
+    background:
+      linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent 65%),
+      radial-gradient(circle at 78% 30%, rgba(197, 154, 69, 0.38), transparent 52%),
+      linear-gradient(135deg, #1d1610, #0d0a07);
+  }
+  .art::after {
+    top: -5rem;
+    right: -5rem;
+    width: 24rem;
+  }
+  .chips {
+    gap: 0.6rem;
+    padding: 1.4rem 2rem;
+  }
+  .chip--extra {
+    display: inline-flex;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(20, 16, 10, 0.55);
+    color: #fff;
+  }
+  .info {
+    grid-area: 1 / 1;
+    align-self: end;
+    z-index: 1;
+    max-width: 44rem;
+    padding: 2rem 2.2rem 2.2rem;
+    color: #fff;
+  }
+  .when {
+    color: var(--gold-300);
+  }
+  .title {
+    font-size: 2.7rem;
+    font-weight: 700;
+    line-height: 1.08;
+    color: #fff;
+  }
+  .text {
+    max-width: 36rem;
+    margin-top: 0.8rem;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.82);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 1.5rem;
+  }
+}

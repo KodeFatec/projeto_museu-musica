@@ -1,0 +1,38 @@
+<article class="card">
+  <div class="art" aria-hidden="true"></div>
+
+  <div class="chips">
+    @if (badge()) {
+      <span class="chip chip--status">{{ badge() }}</span>
+    }
+    @if (event().type) {
+      <span class="chip chip--extra">{{ event().type }}</span>
+    }
+    @if (period()) {
+      <span class="chip chip--extra">{{ period() }}</span>
+    }
+    @if (event().externalPlace) {
+      <span class="chip chip--extra">{{ event().externalPlace }}</span>
+    }
+  </div>
+
+  <div class="info">
+    @if (when()) {
+      <p class="when">{{ when() }}</p>
+    }
+    <h3 class="title">{{ event().title }}</h3>
+    @if (event().description) {
+      <p class="text">{{ event().description }}</p>
+    }
+    @if (event().contactEmail || event().contactPhone) {
+      <div class="actions">
+        @if (event().contactEmail) {
+          <a class="btn btn--primary" [href]="'mailto:' + event().contactEmail">Falar com a organização</a>
+        }
+        @if (event().contactPhone) {
+          <a class="btn" [href]="'tel:' + event().contactPhone">Ligar: {{ event().contactPhone }}</a>
+        }
+      </div>
+    }
+  </div>
+</article>

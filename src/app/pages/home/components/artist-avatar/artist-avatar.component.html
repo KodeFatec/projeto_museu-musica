@@ -1,0 +1,18 @@
+<button type="button" class="artist" [class.is-featured]="featured()" (click)="choose.emit(artist())"
+        [attr.aria-label]="'Tocar ' + artist().name">
+  <span class="ring">
+    @if (artist().photoUrl) {
+      <img [src]="artist().photoUrl" [alt]="artist().name" />
+    } @else {
+      <span class="initials">{{ initials() }}</span>
+    }
+    @if (featured()) {
+      <span class="star" title="Mais ouvido">★</span>
+    }
+  </span>
+  <span class="name">{{ artist().name }}</span>
+  @if (artist().genre) {
+    <span class="genre">{{ artist().genre }}</span>
+  }
+  <span class="count">{{ count() }}</span>
+</button>

@@ -1,0 +1,107 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.banner {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.6rem 1.4rem;
+  margin-right: 1.5rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, var(--blue-900), var(--blue-600));
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(4, 19, 79, 0.28);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  font: 700 0.68rem var(--font-text);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-300);
+}
+h2 {
+  margin: 0;
+  font: 700 1.6rem/1.15 var(--font-title);
+}
+.text {
+  margin: 0.8rem 0 0;
+  font: 400 0.92rem/1.5 var(--font-text);
+  color: rgba(255, 255, 255, 0.82);
+}
+.address {
+  margin: 0.6rem 0 0;
+  font: 500 0.8rem var(--font-text);
+  color: var(--gold-200);
+}
+
+.rooms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.room {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font: 600 0.78rem var(--font-text);
+}
+.room small {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+}
+.total {
+  margin: 0.8rem 0 0;
+  font: 500 0.78rem var(--font-text);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.banner__actions {
+  display: grid;
+  gap: 0.8rem;
+  align-content: center;
+}
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.95rem 1.4rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font: 700 0.78rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  transition: background 0.2s;
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.btn--primary {
+  border-color: var(--gold-500);
+  background: var(--gold-500);
+  color: #1c1308;
+}
+.btn--primary:hover {
+  background: var(--gold-300);
+}
+
+@media (min-width: 1024px) {
+  .banner {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: 3rem;
+    padding: 3rem 3.5rem;
+    margin-right: 0;
+  }
+  h2 {
+    font-size: 2.3rem;
+  }
+}

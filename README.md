@@ -17,7 +17,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 `environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
 
 ## Rotas
-/inicio (Biblioteca) · /tocando e /tocando/:id (player) · /descobrir, /instrumentos, /perfil (provisórias)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir e /instrumentos (provisórias)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -26,7 +26,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 - core/mappers -> DTO -> modelo
 - core/repositories -> uma chamada HTTP por método
 - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
-- shared (vinil e fita) · layout (menu, mini player) · pages/library · pages/now-playing
+- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/library (Perfil) · pages/now-playing
 
 ## De onde vem cada informação da tela
 | Na tela | Tabela.coluna |
@@ -47,6 +47,14 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
 | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
 | Nome e função no menu | usuario.nome + perfil_usuario.nome |
+| Eventos: destaque e lista (título, descrição, tipo, datas, status) | atividade.titulo, descricao, tipo_atividade, data_inicio, data_fim_prevista/data_fim_real, status |
+| Sala do evento ("Em cartaz • Sala 02") | atividade_sala + sala.nome |
+| Local fora do museu | atividade.local_externo |
+| Botões "Falar com a organização" e "Ligar" | atividade.email_contato, telefone_contato |
+| Artistas (círculo, nome, gênero, nº de músicas) | artista.nome_artistico, foto_url via musica_artista; gênero e ranking pelas músicas e por historico_musica |
+| Seleção do Acervo | musica (com busca e filtro de formato) |
+| Faixa "Visite o museu" (nome, descrição, endereço, contatos) | museu.nome, descricao, endereco, telefone, email |
+| Salas e capacidade da faixa "Visite o museu" | sala.nome, capacidade |
 | QR Code | link /tocando/:id da própria aplicação |
 
 ## Identidade visual
@@ -58,6 +66,7 @@ Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo 
 Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
 Planejadas (o front já chama; no mock funcionam):
 - GET /generos
+- GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
 - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)
 - DELETE /musicas-favoritas/:id_usuario/:id_musica
 - Filtros ?id_musica= (letra_trecho, partituras, musica-artista) e ?id_usuario= (favoritas, historico)
