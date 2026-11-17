@@ -18,7 +18,7 @@
     <ul class="links">
       @for (link of links; track link.path) {
         <li>
-          <a [routerLink]="link.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{ link.label }}</a>
+          <a [routerLink]="link.path" [class.active]="isActive(link)" [attr.aria-current]="isActive(link) ? 'page' : null">{{ link.label }}</a>
         </li>
       }
     </ul>

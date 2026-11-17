@@ -47,6 +47,7 @@ export const generos: GeneroMusicalDto[] = [
   { id_genero: 5, nome: 'Pop', descricao: null },
   { id_genero: 6, nome: 'Jazz', descricao: null },
   { id_genero: 7, nome: 'Soul', descricao: null },
+  { id_genero: 8, nome: 'Frevo Elétrico', descricao: null },
 ];
 
 export const musicas: MusicaDto[] = [
@@ -72,6 +73,10 @@ export const musicas: MusicaDto[] = [
   musica(13, 'Águas de Março', 4, 1974, '00:03:30'),
   musica(14, 'Vogue', 5, 1990, '00:05:17'),
   musica(15, 'Everybody Hurts', 1, 1992, '00:05:17'),
+  musica(16, 'Brasil Pandeiro', 3, 1972, '00:04:12'),
+  musica(17, 'Preta Pretinha', 3, 1972, '00:03:24'),
+  musica(18, 'Pombo Correio', 8, 1979, '00:03:48'),
+  musica(19, 'Lá Vem o Brasil', 4, 1976, '00:03:15'),
 ];
 
 const artista = (id_artista: number, nome_artistico: string): ArtistaDto => ({
@@ -108,6 +113,15 @@ export const artistas: ArtistaDto[] = [
   'R.E.M.',
 ].map((nome, i) => artista(i + 1, nome));
 
+// Artista com a ficha completa (tela do artista)
+Object.assign(artistas[16], {
+  nome_completo: 'Antônio Carlos Moreira Pires',
+  biografia:
+    'Cantor, compositor e alma rítmica dos Novos Baianos. Fez do violão de nylon e da guitarra baiana uma revolução harmônica que uniu o samba acústico ao frevo elétrico e à bossa eterna.',
+  data_nascimento: '1947-07-08',
+  data_falecimento: '2020-04-13',
+});
+
 const link = (
   id_musica: number,
   id_artista: number,
@@ -137,6 +151,10 @@ export const musicaArtista: MusicaArtistaDto[] = [
   link(13, 15, 'Piano e voz'),
   link(14, 20, 'Voz'),
   link(15, 21, 'Banda'),
+  link(16, 17, 'Voz e violão'),
+  link(17, 17, 'Voz e violão'),
+  link(18, 17, 'Guitarra baiana'),
+  link(19, 17, 'Voz'),
 ];
 
 const trecho = (id_trecho: number, inicio: string, fim: string, texto: string): LetraTrechoDto => ({
@@ -291,4 +309,18 @@ export const atividades: AtividadeDto[] = [
   atividade(3, 'Matrizes Raras de Bossa Nova', 'Prensagens mono originais da Odeon, de 1958.', 'Exposição', 'Agendada', '2026-11-14', '2026-11-14', 1),
   atividade(4, 'O Som de Bobina: Pink Floyd 1973', 'Master cut em 4 pistas dos estúdios de Abbey Road.', 'Sessão de escuta', 'Agendada', '2026-11-15', '2026-11-15', 3),
   atividade(5, 'Clube da Esquina: Gravações Noturnas', 'Voz e violão isolados em fita Scotch.', 'Recital', 'Agendada', '2026-11-17', '2026-11-17', 2),
+];
+
+// Eventos passados, ligados à partitura (item 1) de uma obra do artista 17
+atividades.push(
+  atividade(6, 'Tributo & Falecimento', 'Homenagem solene do acervo com audição comentada da fita master de “Besta É Tu” na Estação #04.', 'Sessão especial museu', 'Encerrada', '2020-04-13', '2020-04-13', 4),
+  atividade(7, 'Marco: Acabou Chorare', 'Exposição retrospectiva das partituras manuscritas e gravação original em 8 canais reel-to-reel.', 'Vinil remasterizado', 'Encerrada', '2022-05-20', '2022-05-20', 2),
+  atividade(8, 'Celebração de Nascimento', 'Sarau ao vivo com músicos convidados recontando anedotas do Sítio de Jacarepaguá e criação poética.', 'Encontro cultural', 'Encerrada', '2025-07-08', '2025-07-08', 2),
+);
+
+/** Tabela `atividade_item`: itens do acervo apresentados em cada atividade. */
+export const atividadeItens = [
+  { id_atividade: 6, id_item: 1, laudo_saida: null, laudo_retorno: null },
+  { id_atividade: 7, id_item: 1, laudo_saida: null, laudo_retorno: null },
+  { id_atividade: 8, id_item: 1, laudo_saida: null, laudo_retorno: null },
 ];

@@ -17,7 +17,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 `environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
 
 ## Rotas
-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir e /instrumentos (provisórias)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir e /instrumentos (provisórias)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -26,7 +26,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 - core/mappers -> DTO -> modelo
 - core/repositories -> uma chamada HTTP por método
 - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
-- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/library (Perfil) · pages/now-playing
+- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/library (Perfil) · pages/now-playing
 
 ## De onde vem cada informação da tela
 | Na tela | Tabela.coluna |
@@ -55,6 +55,12 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 | Seleção do Acervo | musica (com busca e filtro de formato) |
 | Faixa "Visite o museu" (nome, descrição, endereço, contatos) | museu.nome, descricao, endereco, telefone, email |
 | Salas e capacidade da faixa "Visite o museu" | sala.nome, capacidade |
+| Artista: nome, nome completo, foto, biografia | artista.nome_artistico, nome_completo, foto_url, biografia |
+| Artista: "1947 — 2020 • 72 anos" | artista.data_nascimento, data_falecimento (idade calculada) |
+| Artista: registro `#ART-042` | artista.id_artista |
+| Artista: gêneros (chips) | genero_musical.nome das músicas do artista |
+| Artista: obras e nº por formato (vinis, K7, CDs) | musica via musica_artista; formato pelo ano_gravacao |
+| Artista: Eventos & Memória (data, título, descrição, tipo, "há N anos") | atividade ligada às obras: atividade_item -> item_acervo -> partitura -> musica -> musica_artista |
 | QR Code | link /tocando/:id da própria aplicação |
 
 ## Identidade visual
@@ -67,6 +73,7 @@ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musi
 Planejadas (o front já chama; no mock funcionam):
 - GET /generos
 - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
+- GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
 - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)
 - DELETE /musicas-favoritas/:id_usuario/:id_musica
 - Filtros ?id_musica= (letra_trecho, partituras, musica-artista) e ?id_usuario= (favoritas, historico)

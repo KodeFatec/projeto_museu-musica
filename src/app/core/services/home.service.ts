@@ -88,9 +88,16 @@ export class HomeService {
       ]);
       if (this.library.status() === 'error') throw new Error(this.library.error() ?? 'Erro ao carregar o acervo');
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       this.events.set(
         (activities ?? [])
           .map(toEvent)
+          // "Próximos": eventos já encerrados aparecem só na tela do artista
+          .filter((e) => {
+            const end = e.endDate ?? e.startDate;
+            return !end || end >= today;
+          })
           .sort((a, b) => (a.startDate?.getTime() ?? Infinity) - (b.startDate?.getTime() ?? Infinity)),
       );
       this.museum.set(museum ? toMuseum(museum) : null);

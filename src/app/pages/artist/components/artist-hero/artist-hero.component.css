@@ -1,0 +1,237 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+/* mobile: foto + nomes em cima; biografia, gêneros e números abaixo */
+.hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'photo head'
+    'bio bio'
+    'chips chips'
+    'stats stats'
+    'actions actions';
+  gap: 0 1.1rem;
+  padding: 1.3rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(197, 154, 69, 0.3);
+  background: linear-gradient(160deg, #fffdf8, var(--gold-100));
+  box-shadow: 0 10px 26px rgba(60, 45, 20, 0.12);
+}
+
+.photo {
+  grid-area: photo;
+  width: 5.6rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 4px solid #2b2722;
+  background: linear-gradient(145deg, #2a2723, #14110e);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.initials {
+  font: 600 1.8rem var(--font-title);
+  letter-spacing: 0.04em;
+  color: var(--gold-300);
+}
+
+.head {
+  grid-area: head;
+  align-self: center;
+  min-width: 0;
+}
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.3rem;
+  font: 600 0.68rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-700);
+}
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--gold-500);
+}
+.eyebrow__label,
+.eyebrow__life {
+  display: none;
+}
+.name {
+  margin: 0;
+  font: 700 1.9rem/1.05 var(--font-title);
+  color: var(--ink);
+}
+.full {
+  margin: 0.25rem 0 0;
+  font: 400 0.9rem var(--font-text);
+  color: var(--muted);
+}
+.life {
+  margin: 0.35rem 0 0;
+  font: 500 0.85rem var(--font-text);
+  color: var(--gold-700);
+}
+
+.chips {
+  grid-area: chips;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chips li {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #ece3d0;
+  font: 600 0.68rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5d5447;
+}
+
+.bio {
+  grid-area: bio;
+  margin: 1.1rem 0 0;
+  padding: 1.1rem 0 0;
+  border-top: 1px solid rgba(197, 154, 69, 0.3);
+  font: italic 300 1.05rem/1.6 var(--font-text);
+  color: #3b352e;
+}
+
+.stats {
+  grid-area: stats;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.8rem;
+  margin: 1.1rem 0 0;
+}
+.stats dt {
+  order: 2;
+  font: 600 0.62rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.stats dd {
+  margin: 0;
+  font: 700 1.7rem/1 var(--font-title);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.stats > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.actions {
+  grid-area: actions;
+  margin-top: 1.2rem;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  font: 700 0.78rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn:hover {
+  background: #2e2924;
+  transform: translateY(-1px);
+}
+.btn svg {
+  width: 1rem;
+  color: var(--gold-300);
+}
+
+/* ---------- desktop: foto grande à esquerda ---------- */
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    grid-template-areas:
+      'photo head'
+      'photo chips'
+      'photo bio'
+      'photo stats'
+      'photo actions';
+    grid-template-rows: auto auto auto auto 1fr;
+    gap: 0 3rem;
+    padding: 2.5rem 3rem;
+    border-radius: 1.5rem;
+  }
+  .photo {
+    width: 16rem;
+    align-self: start;
+    border-width: 8px;
+  }
+  .initials {
+    font-size: 4rem;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+  }
+  .eyebrow__label,
+  .eyebrow__life {
+    display: inline;
+  }
+  .dot {
+    display: none;
+  }
+  .name {
+    font-size: 3.6rem;
+  }
+  .full {
+    font: italic 400 1.1rem var(--font-text);
+  }
+  .life {
+    display: none;
+  }
+
+  .chips {
+    margin-top: 1.1rem;
+  }
+  .bio {
+    margin-top: 1.4rem;
+    padding: 0 0 0 1.2rem;
+    border-top: 0;
+    border-left: 3px solid var(--gold-500);
+    font-size: 1.3rem;
+  }
+  .stats {
+    margin-top: 1.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(197, 154, 69, 0.3);
+    gap: 1.2rem 3rem;
+  }
+  .stats dd {
+    font-size: 2.2rem;
+  }
+  .actions {
+    align-self: end;
+  }
+}

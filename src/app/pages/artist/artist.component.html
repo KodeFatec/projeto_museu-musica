@@ -1,0 +1,59 @@
+@if (artist.profile(); as profile) {
+  <div class="page">
+    <header class="top">
+      <!-- mobile -->
+      <div class="top__mobile">
+        <button type="button" class="back" aria-label="Voltar" (click)="goBack()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div>
+          <p class="top__eyebrow">Museu da Música Itu</p>
+          <h2 class="top__title">Artista</h2>
+        </div>
+      </div>
+
+      <!-- desktop -->
+      <nav class="crumbs" aria-label="Você está em">
+        <a routerLink="/inicio">Início</a>
+        <span aria-hidden="true">/</span>
+        <span>Artistas</span>
+        <span aria-hidden="true">/</span>
+        <strong>{{ profile.name }} ({{ code() }})</strong>
+      </nav>
+    </header>
+
+    <app-artist-hero
+      [profile]="profile"
+      [genres]="artist.genres()"
+      [stats]="artist.stats()"
+      [canListen]="artist.tracks().length > 0"
+      (listen)="listen()"
+    />
+
+    <div class="columns">
+      <app-library-section
+        title="Músicas"
+        [subtitle]="artist.stats().works + (artist.stats().works === 1 ? ' obra' : ' obras')"
+        minItem="12rem"
+        mobileItem="8rem"
+      >
+        @for (track of artist.tracks(); track track.id) {
+          <app-track-card [track]="track" variant="sleeve" (play)="playTrack($event)" />
+        } @empty {
+          <p class="empty">Nenhuma música ligada a este artista.</p>
+        }
+      </app-library-section>
+
+      <app-artist-timeline [events]="artist.events()" />
+    </div>
+  </div>
+} @else if (artist.status() === 'error') {
+  <div class="state">
+    <p>{{ artist.error() }}</p>
+    <a routerLink="/inicio">Voltar ao início</a>
+  </div>
+} @else {
+  <p class="state">Carregando…</p>
+}

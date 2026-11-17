@@ -1,5 +1,5 @@
 <button type="button" class="artist" [class.is-featured]="featured()" (click)="choose.emit(artist())"
-        [attr.aria-label]="'Tocar ' + artist().name">
+        [attr.aria-label]="'Abrir ' + artist().name">
   <span class="ring">
     @if (artist().photoUrl) {
       <img [src]="artist().photoUrl" [alt]="artist().name" />

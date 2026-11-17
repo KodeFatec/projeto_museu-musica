@@ -21,3 +21,37 @@ export function dateRange(start?: Date, end?: Date): string {
   if (!end || end.getTime() === start.getTime()) return full.format(start);
   return `${dayMonth.format(start)} – ${full.format(end)}`;
 }
+
+const monthShort = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
+
+/** "13 Abr 2020" */
+export function shortDate(date: Date): string {
+  const month = capitalize(monthShort.format(date).replace('.', ''));
+  return `${String(date.getDate()).padStart(2, '0')} ${month} ${date.getFullYear()}`;
+}
+
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+/** Anos completos entre duas datas (idade). */
+export function ageBetween(birth: Date, end: Date = new Date()): number {
+  let years = end.getFullYear() - birth.getFullYear();
+  if (end < new Date(end.getFullYear(), birth.getMonth(), birth.getDate())) years--;
+  return years;
+}
+
+/** Tempo decorrido em duas partes para o selo da linha do tempo: { amount: '4', unit: 'anos' }. */
+export function elapsed(date: Date, now: Date = new Date()): { amount: string; unit: string } {
+  const today = startOfDay(now);
+  const day = startOfDay(date);
+  if (day > today) return { amount: 'Em', unit: 'breve' };
+
+  const years = ageBetween(day, today);
+  if (years >= 1) return { amount: String(years), unit: years === 1 ? 'ano' : 'anos' };
+
+  const months =
+    (today.getFullYear() - day.getFullYear()) * 12 + today.getMonth() - day.getMonth() - (today.getDate() < day.getDate() ? 1 : 0);
+  if (months >= 1) return { amount: String(months), unit: months === 1 ? 'mês' : 'meses' };
+
+  const days = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+  return days === 0 ? { amount: 'Hoje', unit: '' } : { amount: String(days), unit: days === 1 ? 'dia' : 'dias' };
+}

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { ArtistSummary } from '../../../../core/models/event.model';
 
-/** Artista em círculo (foto_url ou iniciais). Clicar toca a música mais ouvida dele. */
+/** Artista em círculo (foto_url ou iniciais). Clicar abre a tela do artista. */
 @Component({
   selector: 'app-artist-avatar',
   standalone: false,

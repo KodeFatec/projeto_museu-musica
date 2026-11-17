@@ -1,0 +1,194 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.eyebrow {
+  display: none;
+  margin: 0 0 0.3rem;
+  font: 700 0.65rem var(--font-text);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-700);
+}
+h2 {
+  margin: 0;
+  font: 700 1.2rem var(--font-title);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.hint {
+  font: 500 0.72rem var(--font-text);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.list {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* mobile: um cartão por evento, com selo de tempo decorrido */
+.item {
+  display: flex;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(197, 154, 69, 0.25);
+  background: #fffdf8;
+  box-shadow: 0 4px 12px rgba(60, 45, 20, 0.06);
+}
+.badge {
+  width: 3.2rem;
+  height: 3.2rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.8rem;
+  background: var(--ink);
+  color: #fff;
+  line-height: 1;
+}
+.item[data-tone='1'] .badge {
+  background: var(--gold-600);
+}
+.item[data-tone='2'] .badge {
+  background: var(--blue-600);
+}
+.badge b {
+  font: 700 1.1rem var(--font-title);
+}
+.badge small {
+  font: 600 0.55rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.item__body {
+  min-width: 0;
+}
+.meta {
+  margin: 0 0 0.2rem;
+  font: 600 0.68rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-700);
+}
+.meta__since {
+  display: none;
+}
+h3 {
+  margin: 0;
+  font: 700 1.05rem/1.25 var(--font-title);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.desc {
+  margin: 0.4rem 0 0;
+  font: 400 0.88rem/1.45 var(--font-text);
+  color: #5b5348;
+}
+.chip {
+  display: inline-block;
+  margin-top: 0.7rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  background: #ece3d0;
+  font: 600 0.72rem var(--font-text);
+  color: #6b5a2f;
+}
+
+.empty {
+  margin: 0;
+  font: italic 400 1rem var(--font-text);
+  color: var(--muted);
+}
+
+/* ---------- desktop: painel lateral com linha vertical ---------- */
+@media (min-width: 1024px) {
+  .timeline {
+    padding: 1.8rem 1.8rem 2rem;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(197, 154, 69, 0.25);
+    background: #fffdf8;
+    box-shadow: 0 6px 18px rgba(60, 45, 20, 0.08);
+  }
+  .eyebrow {
+    display: block;
+  }
+  h2 {
+    font-size: 1.6rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .hint {
+    display: none;
+  }
+
+  .list {
+    position: relative;
+    gap: 1.6rem;
+    margin-top: 1.6rem;
+    padding-left: 1.6rem;
+  }
+  .list::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.35rem;
+    width: 2px;
+    background: #e5dac3;
+  }
+  .item {
+    position: relative;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .item::before {
+    content: '';
+    position: absolute;
+    top: 0.2rem;
+    left: -1.6rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: 0 0 0 3px #fffdf8;
+  }
+  .item[data-tone='1']::before {
+    background: var(--gold-500);
+  }
+  .item[data-tone='2']::before {
+    background: var(--blue-600);
+  }
+  .badge {
+    display: none;
+  }
+  .meta__since {
+    display: inline;
+  }
+  h3 {
+    font-size: 1.15rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}

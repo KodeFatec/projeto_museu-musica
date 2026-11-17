@@ -125,6 +125,14 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     });
   }
 
+  // --- eventos do artista (rota planejada): atividade_item -> partitura -> musica -> musica_artista
+  if (resource === 'artistas' && second === 'atividades' && method === 'get') {
+    const songIds = db.musicaArtista.filter((l) => String(l.id_artista) === first).map((l) => l.id_musica);
+    const itemIds = db.partituras.filter((p) => p.id_musica !== null && songIds.includes(p.id_musica)).map((p) => p.id_item);
+    const activityIds = new Set(db.atividadeItens.filter((ai) => itemIds.includes(ai.id_item)).map((ai) => ai.id_atividade));
+    return respond(config, envelope(db.atividades.filter((a) => activityIds.has(a.id_atividade)) as unknown as Row[]));
+  }
+
   // --- museu (rota planejada): um único registro
   if (resource === 'museu' && method === 'get') return respond(config, db.museu);
 

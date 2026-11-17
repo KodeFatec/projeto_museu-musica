@@ -71,8 +71,9 @@ export class HomeComponent implements OnInit {
     this.open(track.id);
   }
 
-  protected playArtist(artist: ArtistSummary): void {
-    this.open(artist.topTrackId);
+  /** Abre a tela do artista. */
+  protected openArtist(artist: ArtistSummary): void {
+    void this.router.navigate(['/artista', artist.id]);
   }
 
   /** Abre a tela Tocando já reproduzindo. */

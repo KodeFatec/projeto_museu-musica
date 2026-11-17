@@ -81,7 +81,7 @@
         mobileItem="6.5rem"
       >
         @for (artist of home.artists(); track artist.id; let first = $first) {
-          <app-artist-avatar [artist]="artist" [featured]="first" (choose)="playArtist($event)" />
+          <app-artist-avatar [artist]="artist" [featured]="first" (choose)="openArtist($event)" />
         }
       </app-library-section>
     }

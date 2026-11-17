@@ -17,6 +17,10 @@ export class CatalogRepository {
   listArtists(): Promise<ArtistaDto[]> {
     return this.api.list<ArtistaDto>(ENDPOINTS.artistas);
   }
+  /** GET /artistas/:id (existe): devolve a ficha completa do artista. */
+  getArtist(id: number): Promise<ArtistaDto> {
+    return this.api.get<ArtistaDto>(`${ENDPOINTS.artistas}/${id}`);
+  }
   listSongArtists(): Promise<MusicaArtistaDto[]> {
     return this.api.list<MusicaArtistaDto>(ENDPOINTS.musicaArtista);
   }

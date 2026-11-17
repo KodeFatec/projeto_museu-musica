@@ -1,0 +1,41 @@
+<section class="timeline">
+  <header class="head">
+    <div>
+      <p class="eyebrow">Arquivo efêmero</p>
+      <h2>Eventos &amp; Memória</h2>
+    </div>
+    <span class="hint">Cronologia</span>
+  </header>
+
+  @if (events().length) {
+    <ol class="list">
+      @for (event of events(); track event.id; let i = $index) {
+        <li class="item" [attr.data-tone]="i % 3">
+          @if (since(event); as since) {
+            <span class="badge" aria-hidden="true">
+              <b>{{ since.amount }}</b>
+              <small>{{ since.unit }}</small>
+            </span>
+          }
+          <div class="item__body">
+            <p class="meta">
+              {{ date(event) }}
+              @if (since(event); as since) {
+                <span class="meta__since">• {{ since.amount }} {{ since.unit }}</span>
+              }
+            </p>
+            <h3>{{ event.title }}</h3>
+            @if (event.description) {
+              <p class="desc">{{ event.description }}</p>
+            }
+            @if (event.type) {
+              <span class="chip">{{ event.type }}</span>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+  } @else {
+    <p class="empty">Nenhum evento do museu ligado às obras deste artista.</p>
+  }
+</section>

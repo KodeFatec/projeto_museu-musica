@@ -12,6 +12,14 @@ export class MuseumRepository {
     return this.api.list<AtividadeDto>(ENDPOINTS.atividades);
   }
 
+  /**
+   * Eventos ligados ao artista (PLANEJADA): GET /artistas/:id/atividades.
+   * No banco o caminho é atividade_item -> item_acervo -> partitura -> musica -> musica_artista.
+   */
+  listArtistActivities(artistId: number): Promise<AtividadeDto[]> {
+    return this.api.list<AtividadeDto>(`${ENDPOINTS.artistas}/${artistId}/atividades`);
+  }
+
   getMuseum(): Promise<MuseuDto> {
     return this.api.get<MuseuDto>(ENDPOINTS.museu);
   }

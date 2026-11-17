@@ -1,0 +1,56 @@
+<section class="hero">
+  <div class="photo">
+    @if (profile().photoUrl) {
+      <img [src]="profile().photoUrl" [alt]="'Foto de ' + profile().name" />
+    } @else {
+      <span class="initials" aria-hidden="true">{{ initials() }}</span>
+    }
+  </div>
+
+  <div class="head">
+    <p class="eyebrow">
+      <span class="dot"></span>
+      <span class="eyebrow__code"><span class="eyebrow__label">Registro</span> {{ code() }}</span>
+      @if (life()) {
+        <span class="eyebrow__life">• {{ life() }}</span>
+      }
+    </p>
+    <h1 class="name">{{ profile().name }}</h1>
+    @if (profile().fullName) {
+      <p class="full">{{ profile().fullName }}</p>
+    }
+    @if (life()) {
+      <p class="life">{{ life() }}</p>
+    }
+  </div>
+
+  @if (genres().length) {
+    <ul class="chips" aria-label="Gêneros">
+      @for (genre of genres(); track genre) {
+        <li>{{ genre }}</li>
+      }
+    </ul>
+  }
+
+  @if (profile().biography) {
+    <blockquote class="bio">“{{ profile().biography }}”</blockquote>
+  }
+
+  <dl class="stats">
+    @for (item of numbers(); track item.label) {
+      <div>
+        <dt>{{ item.label }}</dt>
+        <dd>{{ pad(item.value) }}</dd>
+      </div>
+    }
+  </dl>
+
+  @if (canListen()) {
+    <div class="actions">
+      <button type="button" class="btn" (click)="listen.emit()">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        Ouvir agora
+      </button>
+    </div>
+  }
+</section>
