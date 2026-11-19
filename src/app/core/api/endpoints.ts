@@ -15,4 +15,5 @@ export const ENDPOINTS = {
   atividades: '/atividades', // PLANEJADA
   museu: '/museu', // PLANEJADA
   salas: '/salas', // PLANEJADA
+  instrumentos: '/instrumentos', // PLANEJADA
 } as const;

@@ -50,6 +50,33 @@ export const generos: GeneroMusicalDto[] = [
   { id_genero: 8, nome: 'Frevo Elétrico', descricao: null },
 ];
 
+export const instrumentos = [
+  {
+    id_item: 1, titulo: 'Piano de cauda Steinway', descricao: 'Instrumento de concerto preservado pelo museu.',
+    origem: 'Salão Nobre', data_aquisicao: '1998-05-12', estado_conservacao: 'Restaurado',
+    tipo_instrumento: 'Piano', fabricante: 'Steinway & Sons', ano_fabricacao: 1928, antigo_dono: 'Coleção particular de Itu',
+    midias: [],
+  },
+  {
+    id_item: 2, titulo: 'Violão de nylon', descricao: 'Tampo em pinho seco e timbre quente.',
+    origem: 'São Paulo', data_aquisicao: '2004-09-03', estado_conservacao: 'Bom',
+    tipo_instrumento: 'Cordas', fabricante: 'Del Vecchio', ano_fabricacao: 1964, antigo_dono: null, midias: [],
+  },
+  {
+    id_item: 3, titulo: 'Guitarra elétrica', descricao: 'Ataque percussivo e brilho característico.',
+    origem: 'Recife', data_aquisicao: '2011-02-18', estado_conservacao: 'Regular',
+    tipo_instrumento: 'Cordas', fabricante: 'Gibson', ano_fabricacao: 1972, antigo_dono: 'Músico de trio elétrico', midias: [],
+  },
+  {
+    id_item: 4, titulo: 'Saxofone tenor', descricao: null, origem: 'Rio de Janeiro', data_aquisicao: null,
+    estado_conservacao: 'Bom', tipo_instrumento: 'Sopros', fabricante: 'Selmer', ano_fabricacao: 1959, antigo_dono: null, midias: [],
+  },
+  {
+    id_item: 5, titulo: 'Cavaquinho', descricao: null, origem: 'Bahia', data_aquisicao: null,
+    estado_conservacao: 'Restaurado', tipo_instrumento: 'Cordas', fabricante: 'Di Giorgio', ano_fabricacao: 1948, antigo_dono: null, midias: [],
+  },
+];
+
 export const musicas: MusicaDto[] = [
   musica(1, 'Bohemian Rhapsody', 1, 1975, '00:05:55'),
   musica(2, 'Time', 2, 1973, '00:06:53'),

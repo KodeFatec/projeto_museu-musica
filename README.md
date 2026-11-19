@@ -17,7 +17,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 `environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
 
 ## Rotas
-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir e /instrumentos (provisórias)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir (provisória) · /instrumentos (listagem do acervo)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -26,7 +26,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 - core/mappers -> DTO -> modelo
 - core/repositories -> uma chamada HTTP por método
 - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
-- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/library (Perfil) · pages/now-playing
+- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/library (Perfil) · pages/now-playing
 
 ## De onde vem cada informação da tela
 | Na tela | Tabela.coluna |
@@ -72,6 +72,7 @@ Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo 
 Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
 Planejadas (o front já chama; no mock funcionam):
 - GET /generos
+- GET /instrumentos (JOIN instrumento + item_acervo, com `midias`)
 - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
 - GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
 - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)

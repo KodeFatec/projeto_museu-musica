@@ -1,0 +1,1055 @@
+diff --git a/README.md b/README.md
+index f64c8e4..38e720d 100644
+--- a/README.md
++++ b/README.md
+@@ -17,7 +17,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ `environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
+ 
+ ## Rotas
+-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir (busca e exploração do acervo) · /instrumentos (provisória)
++/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir (busca e exploração do acervo) · /instrumentos (listagem do acervo de instrumentos)
+ 
+ ## Arquitetura
+ - core/models/dto.ts  -> formato exato da API (colunas do banco)
+@@ -26,7 +26,7 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ - core/mappers -> DTO -> modelo
+ - core/repositories -> uma chamada HTTP por método
+ - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
+-- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
++- shared (vinil e fita) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/explore (Descobrir) · pages/instruments (Instrumentos) · pages/library (Perfil) · pages/now-playing
+ 
+ ## De onde vem cada informação da tela
+ | Na tela | Tabela.coluna |
+@@ -66,6 +66,12 @@ O proxy evita o CORS (a API ainda não usa `cors`).
+ | Descobrir: coleções por instrumento ("Piano — N instrumentos") | contagem de instrumento.tipo_instrumento |
+ | Descobrir: Acervo físico (vinis, fitas K7, CDs) | contagem de musica por formato (regra do ano) |
+ | Descobrir: Acervo físico (partituras, instrumentos, artistas) | contagem de partitura, instrumento e artista |
++| Instrumentos: lista (título, tipo, fabricante, ano, descrição) | item_acervo.titulo, descricao + instrumento.tipo_instrumento, fabricante, ano_fabricacao |
++| Instrumentos: chips por tipo e contagens | instrumento.tipo_instrumento (valores distintos) |
++| Instrumentos: estado, origem, aquisição e antigo dono | item_acervo.estado_conservacao, origem, data_aquisicao + instrumento.antigo_dono |
++| Instrumentos: foto | midia.arquivo_url (primeira mídia do tipo imagem) do item |
++| Instrumentos: código `#ITEM-004` | item_acervo.id_item |
++| Instrumentos: ordenar por nome, ano ou fabricante | instrumento.ano_fabricacao, fabricante, item_acervo.titulo |
+ | Descobrir: cartão de instrumento (tipo, fabricante, ano, origem, estado) | instrumento.tipo_instrumento, fabricante, ano_fabricacao + item_acervo.titulo, origem, estado_conservacao |
+ | Descobrir: cartão de partitura (autor, ano, origem, estado, arquivo, "Ouvir a música") | partitura.autor, ano_criacao, arquivo_url, id_musica + item_acervo.titulo, origem, estado_conservacao |
+ | QR Code | link /tocando/:id da própria aplicação |
+@@ -80,7 +86,7 @@ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musi
+ Planejadas (o front já chama; no mock funcionam):
+ - GET /generos
+ - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
+-- GET /instrumentos (JOIN instrumento + item_acervo)
++- GET /instrumentos (JOIN instrumento + item_acervo, com `midias`: tabela midia do item)
+ - GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
+ - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)
+ - DELETE /musicas-favoritas/:id_usuario/:id_musica
+diff --git a/src/app/app-routing.module.ts b/src/app/app-routing.module.ts
+index 3729333..a112f7b 100644
+--- a/src/app/app-routing.module.ts
++++ b/src/app/app-routing.module.ts
+@@ -1,8 +1,6 @@
+ import { NgModule } from '@angular/core';
+ import { RouterModule, Routes } from '@angular/router';
+ 
+-const comingSoon = () => import('./pages/coming-soon/coming-soon.module').then((m) => m.ComingSoonModule);
+-
+ const routes: Routes = [
+   { path: '', pathMatch: 'full', redirectTo: 'inicio' },
+   { path: 'inicio', loadChildren: () => import('./pages/home/home.module').then((m) => m.HomeModule) },
+@@ -10,7 +8,7 @@ const routes: Routes = [
+   { path: 'perfil', loadChildren: () => import('./pages/library/library.module').then((m) => m.LibraryModule) },
+   { path: 'tocando', loadChildren: () => import('./pages/now-playing/now-playing.module').then((m) => m.NowPlayingModule) },
+   { path: 'descobrir', loadChildren: () => import('./pages/explore/explore.module').then((m) => m.ExploreModule) },
+-  { path: 'instrumentos', data: { title: 'Instrumentos' }, loadChildren: comingSoon },
++  { path: 'instrumentos', loadChildren: () => import('./pages/instruments/instruments.module').then((m) => m.InstrumentsModule) },
+   { path: '**', redirectTo: 'inicio' },
+ ];
+ 
+diff --git a/src/app/app.component.ts b/src/app/app.component.ts
+index 6da6d99..dc49b5d 100644
+--- a/src/app/app.component.ts
++++ b/src/app/app.component.ts
+@@ -31,10 +31,10 @@ export class AppComponent implements OnInit {
+     void this.library.load();
+   }
+ 
+-  /** A busca do menu filtra o acervo; fora do Início, do Descobrir e do Perfil, leva para o Início. */
++  /** A busca do menu filtra o acervo; fora do Início, Descobrir, Instrumentos e Perfil, leva para o Início. */
+   protected onSearch(query: string): void {
+     this.library.query.set(query);
+     const url = this.router.url;
+-    if (!['/inicio', '/descobrir', '/perfil'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
++    if (!['/inicio', '/descobrir', '/instrumentos', '/perfil'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
+   }
+ }
+diff --git a/src/app/core/api/mock/mock-db.ts b/src/app/core/api/mock/mock-db.ts
+index a1afd3f..a9c5399 100644
+--- a/src/app/core/api/mock/mock-db.ts
++++ b/src/app/core/api/mock/mock-db.ts
+@@ -356,3 +356,19 @@ partituras.push(
+   { id_item: 3, id_musica: 2, id_categoria: 1, titulo: 'Cifras de ensaio', descricao: null, origem: null, data_aquisicao: null, estado_conservacao: 'Regular', autor: null, ano_criacao: 1973, arquivo_url: null, id_usuario_cadastro: 1 },
+   { id_item: 4, id_musica: 10, id_categoria: 1, titulo: 'Partitura orquestral', descricao: 'Parte de metais.', origem: 'Compra do museu', data_aquisicao: '2010-11-20', estado_conservacao: 'Restaurado', autor: 'Orquestra do Salão Nobre', ano_criacao: 1964, arquivo_url: null, id_usuario_cadastro: 1 },
+ );
++
++// Detalhes extras de alguns instrumentos (descrição, aquisição e antigo dono)
++Object.assign(instrumentos[0], {
++  descricao: 'Timbre aveludado e sustentação harmônica incomparável, usado nas sessões de gravação do Salão Nobre.',
++  data_aquisicao: '1998-05-12',
++  antigo_dono: 'Coleção particular de Itu',
++});
++Object.assign(instrumentos[4], {
++  descricao: 'Tampo em pinho seco e timbre quente, afinação tradicional preservada pela restauração.',
++  data_aquisicao: '2004-09-03',
++});
++Object.assign(instrumentos[6], {
++  descricao: 'Ataque percussivo e brilho característico das gravações de frevo elétrico.',
++  data_aquisicao: '2011-02-18',
++  antigo_dono: 'Músico de trio elétrico',
++});
+diff --git a/src/app/core/mappers/instrument.mapper.ts b/src/app/core/mappers/instrument.mapper.ts
+index d30a88f..2baf610 100644
+--- a/src/app/core/mappers/instrument.mapper.ts
++++ b/src/app/core/mappers/instrument.mapper.ts
+@@ -1,4 +1,5 @@
+ import { InstrumentoDto } from '../models/dto';
++import { parseDate } from '../utils/date-format';
+ import { Instrument } from '../models/instrument.model';
+ 
+ export function toInstrument(dto: InstrumentoDto): Instrument {
+@@ -12,5 +13,7 @@ export function toInstrument(dto: InstrumentoDto): Instrument {
+     maker: dto.fabricante ?? undefined,
+     year: dto.ano_fabricacao ?? undefined,
+     formerOwner: dto.antigo_dono ?? undefined,
++    acquiredAt: parseDate(dto.data_aquisicao),
++    photoUrl: dto.midias?.find((m) => /imagem|image|foto|photo/i.test(m.tipo_midia ?? ''))?.arquivo_url,
+   };
+ }
+diff --git a/src/app/core/models/dto.ts b/src/app/core/models/dto.ts
+index d6011fd..48abcd6 100644
+--- a/src/app/core/models/dto.ts
++++ b/src/app/core/models/dto.ts
+@@ -165,4 +165,15 @@ export interface InstrumentoDto {
+   fabricante: string | null;
+   ano_fabricacao: number | null;
+   antigo_dono: string | null;
++  /** Mídias do item (tabela `midia`); a API deve devolvê-las junto para evitar uma chamada por instrumento. */
++  midias?: MidiaDto[];
++}
++
++/** Tabela `midia`: arquivos (foto, vídeo, áudio) ligados a um item do acervo. */
++export interface MidiaDto {
++  id_midia: number;
++  id_item: number;
++  tipo_midia: string | null;
++  arquivo_url: string;
++  descricao: string | null;
+ }
+diff --git a/src/app/core/models/instrument.model.ts b/src/app/core/models/instrument.model.ts
+index 5de9883..0d3135f 100644
+--- a/src/app/core/models/instrument.model.ts
++++ b/src/app/core/models/instrument.model.ts
+@@ -10,4 +10,8 @@ export interface Instrument {
+   maker?: string;
+   year?: number;
+   formerOwner?: string;
++  /** data_aquisicao */
++  acquiredAt?: Date;
++  /** Primeira mídia do tipo imagem (midia.arquivo_url). */
++  photoUrl?: string;
+ }
+diff --git a/src/app/core/services/instruments.service.ts b/src/app/core/services/instruments.service.ts
+new file mode 100644
+index 0000000..0766b69
+--- /dev/null
++++ b/src/app/core/services/instruments.service.ts
+@@ -0,0 +1,64 @@
++import { computed, inject, Injectable, signal } from '@angular/core';
++import { Instrument } from '../models/instrument.model';
++import { normalize } from '../utils/text';
++import { ExploreService } from './explore.service';
++import { LibraryService } from './library.service';
++
++export type InstrumentSort = 'name' | 'oldest' | 'newest' | 'maker';
++export type InstrumentView = 'list' | 'grid';
++
++/**
++ * Estado da tela Instrumentos: filtro por tipo, busca (a mesma do menu), ordem e modo de exibição.
++ * Os instrumentos em si são carregados pelo ExploreService (mesma rota, uma só chamada).
++ */
++@Injectable({ providedIn: 'root' })
++export class InstrumentsService {
++  private readonly explore = inject(ExploreService);
++  private readonly library = inject(LibraryService);
++
++  readonly type = signal<string | null>(null);
++  readonly sort = signal<InstrumentSort>('name');
++  readonly view = signal<InstrumentView>('list');
++
++  readonly status = this.explore.status;
++  readonly error = this.explore.error;
++  readonly all = this.explore.instruments;
++  readonly types = this.explore.instrumentTypes;
++
++  /** Ano de fabricação do instrumento mais antigo do acervo. */
++  readonly oldestYear = computed(() => {
++    const years = this.all().map((i) => i.year).filter((y): y is number => !!y);
++    return years.length ? Math.min(...years) : null;
++  });
++
++  readonly filtered = computed<Instrument[]>(() => {
++    const type = this.type();
++    const text = normalize(this.library.query().trim());
++    const items = this.all().filter(
++      (i) =>
++        (!type || i.type === type) &&
++        (!text || normalize([i.title, i.type, i.maker, i.formerOwner, i.description, i.origin, i.year].filter(Boolean).join(' ')).includes(text)),
++    );
++    return items.sort(this.comparator(this.sort()));
++  });
++
++  load(): Promise<void> {
++    return this.explore.load();
++  }
++
++  private comparator(sort: InstrumentSort): (a: Instrument, b: Instrument) => number {
++    const byName = (a: Instrument, b: Instrument) => a.title.localeCompare(b.title, 'pt-BR');
++    // sem ano de fabricação vai para o fim, em qualquer ordem
++    const year = (i: Instrument, missing: number) => i.year ?? missing;
++    switch (sort) {
++      case 'oldest':
++        return (a, b) => year(a, Infinity) - year(b, Infinity) || byName(a, b);
++      case 'newest':
++        return (a, b) => year(b, -Infinity) - year(a, -Infinity) || byName(a, b);
++      case 'maker':
++        return (a, b) => (a.maker ?? '\uffff').localeCompare(b.maker ?? '\uffff', 'pt-BR') || byName(a, b);
++      default:
++        return byName;
++    }
++  }
++}
+diff --git a/src/app/pages/coming-soon/coming-soon.component.ts b/src/app/pages/coming-soon/coming-soon.component.ts
+deleted file mode 100644
+index 84b3df6..0000000
+--- a/src/app/pages/coming-soon/coming-soon.component.ts
++++ /dev/null
+@@ -1,28 +0,0 @@
+-import { ChangeDetectionStrategy, Component } from '@angular/core';
+-import { ActivatedRoute } from '@angular/router';
+-
+-/** Tela provisória das seções que ainda não foram desenhadas (Instrumentos). */
+-@Component({
+-  selector: 'app-coming-soon',
+-  standalone: false,
+-  changeDetection: ChangeDetectionStrategy.OnPush,
+-  template: `
+-    <section class="soon">
+-      <h1>{{ title }}</h1>
+-      <p>Esta área ainda está em construção.</p>
+-    </section>
+-  `,
+-  styles: `
+-    :host { display: block; flex: none; }
+-    .soon { padding: 3rem 1.5rem 10rem; text-align: center; }
+-    h1 { margin: 0; font: 600 2rem var(--font-title); color: var(--ink); }
+-    p { margin: 0.5rem 0 0; font: italic 400 1.1rem var(--font-title); color: var(--muted); }
+-  `,
+-})
+-export class ComingSoonComponent {
+-  protected readonly title: string;
+-
+-  constructor(route: ActivatedRoute) {
+-    this.title = route.snapshot.data['title'] ?? 'Em breve';
+-  }
+-}
+diff --git a/src/app/pages/coming-soon/coming-soon.module.ts b/src/app/pages/coming-soon/coming-soon.module.ts
+deleted file mode 100644
+index 8bb7498..0000000
+--- a/src/app/pages/coming-soon/coming-soon.module.ts
++++ /dev/null
+@@ -1,10 +0,0 @@
+-import { CommonModule } from '@angular/common';
+-import { NgModule } from '@angular/core';
+-import { RouterModule } from '@angular/router';
+-import { ComingSoonComponent } from './coming-soon.component';
+-
+-@NgModule({
+-  declarations: [ComingSoonComponent],
+-  imports: [CommonModule, RouterModule.forChild([{ path: '', component: ComingSoonComponent }])],
+-})
+-export class ComingSoonModule {}
+diff --git a/src/app/pages/instruments/components/instrument-card/instrument-card.component.css b/src/app/pages/instruments/components/instrument-card/instrument-card.component.css
+new file mode 100644
+index 0000000..fee5ae5
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-card/instrument-card.component.css
+@@ -0,0 +1,178 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.card {
++  height: 100%;
++  display: grid;
++  grid-template-columns: 5.6rem minmax(0, 1fr);
++  grid-template-areas:
++    'photo body'
++    'side side';
++  gap: 0.9rem 1rem;
++  padding: 0.9rem;
++  border: 1px solid rgba(197, 154, 69, 0.25);
++  border-radius: 1.1rem;
++  background: #fffdf8;
++  box-shadow: 0 4px 14px rgba(60, 45, 20, 0.07);
++}
++
++.photo {
++  grid-area: photo;
++  position: relative;
++  align-self: start;
++  aspect-ratio: 1;
++  display: grid;
++  place-items: center;
++  overflow: hidden;
++  border-radius: 0.8rem;
++  background: linear-gradient(145deg, #2b241e, #1e1915);
++}
++.photo img {
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++.photo__icon {
++  width: 42%;
++  color: var(--gold-300);
++}
++.photo__year {
++  position: absolute;
++  right: 0.35rem;
++  bottom: 0.35rem;
++  padding: 0.1rem 0.4rem;
++  border-radius: 4px;
++  background: rgba(20, 16, 10, 0.78);
++  font: 700 0.62rem var(--font-text);
++  font-variant-numeric: tabular-nums;
++  color: var(--gold-300);
++}
++
++.body {
++  grid-area: body;
++  min-width: 0;
++}
++.eyebrow {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 0.5rem;
++  margin: 0 0 0.35rem;
++}
++.tag {
++  padding: 0.15rem 0.55rem;
++  border-radius: 4px;
++  background: var(--gold-500);
++  font: 700 0.62rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #1c1308;
++}
++.code {
++  font: 500 0.66rem var(--font-text);
++  letter-spacing: 0.08em;
++  color: var(--muted);
++}
++.title {
++  margin: 0;
++  font: 700 1.25rem/1.2 var(--font-title);
++  color: var(--ink);
++}
++.meta {
++  margin: 0.25rem 0 0;
++  font: 500 0.82rem var(--font-text);
++  color: var(--gold-700);
++}
++.desc {
++  margin: 0.45rem 0 0;
++  font: italic 400 0.85rem/1.45 var(--font-text);
++  color: #6b6154;
++  display: -webkit-box;
++  -webkit-line-clamp: 3;
++  -webkit-box-orient: vertical;
++  overflow: hidden;
++}
++
++.side {
++  grid-area: side;
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 0.5rem 0.9rem;
++}
++.side:empty {
++  display: none;
++}
++.chip {
++  padding: 0.2rem 0.75rem;
++  border-radius: 999px;
++  background: #ece3d0;
++  font: 600 0.7rem var(--font-text);
++  color: #6b5a2f;
++}
++.facts {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.2rem 0.9rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++  font: 400 0.74rem var(--font-text);
++  color: var(--muted);
++}
++
++/* ---------- desktop, modo catálogo: foto | texto | detalhes ---------- */
++@media (min-width: 1024px) {
++  .card:not(.card--grid) {
++    grid-template-columns: 8rem minmax(0, 1fr) 15rem;
++    grid-template-areas: 'photo body side';
++    gap: 1.5rem;
++    align-items: center;
++    padding: 1.2rem 1.5rem;
++  }
++  .card:not(.card--grid) .photo {
++    align-self: center;
++  }
++  .card:not(.card--grid) .title {
++    font-size: 1.6rem;
++  }
++  .card:not(.card--grid) .desc {
++    font-size: 0.92rem;
++  }
++  .card:not(.card--grid) .side {
++    flex-direction: column;
++    align-items: flex-end;
++    text-align: right;
++  }
++  .card:not(.card--grid) .facts {
++    flex-direction: column;
++    gap: 0.25rem;
++  }
++}
++
++/* ---------- modo galeria: cartão vertical ---------- */
++.card--grid {
++  grid-template-columns: minmax(0, 1fr);
++  grid-template-areas:
++    'photo'
++    'body'
++    'side';
++  gap: 0.9rem;
++  padding: 0;
++  overflow: hidden;
++}
++.card--grid .photo {
++  align-self: stretch;
++  aspect-ratio: 4 / 3;
++  border-radius: 0;
++}
++.card--grid .body,
++.card--grid .side {
++  padding: 0 1rem;
++}
++.card--grid .side {
++  padding-bottom: 1rem;
++  margin-top: auto;
++}
+diff --git a/src/app/pages/instruments/components/instrument-card/instrument-card.component.html b/src/app/pages/instruments/components/instrument-card/instrument-card.component.html
+new file mode 100644
+index 0000000..2c0cee1
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-card/instrument-card.component.html
+@@ -0,0 +1,43 @@
++<article class="card" [class.card--grid]="view() === 'grid'">
++  <div class="photo">
++    @if (instrument().photoUrl) {
++      <img [src]="instrument().photoUrl" [alt]="instrument().title" loading="lazy" />
++    } @else {
++      <svg class="photo__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
++        <path d="M9 18V5l11-2v13M9 18a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 9 18Zm11-2a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 20 16Z" />
++      </svg>
++    }
++    @if (instrument().year) {
++      <span class="photo__year">{{ instrument().year }}</span>
++    }
++  </div>
++
++  <div class="body">
++    <p class="eyebrow">
++      @if (instrument().type) {
++        <span class="tag">{{ instrument().type }}</span>
++      }
++      <span class="code">{{ code() }}</span>
++    </p>
++    <h3 class="title">{{ instrument().title }}</h3>
++    @if (meta()) {
++      <p class="meta">{{ meta() }}</p>
++    }
++    @if (instrument().description) {
++      <p class="desc">{{ instrument().description }}</p>
++    }
++  </div>
++
++  <div class="side">
++    @if (instrument().condition) {
++      <span class="chip">{{ instrument().condition }}</span>
++    }
++    @if (facts().length) {
++      <ul class="facts">
++        @for (fact of facts(); track fact) {
++          <li>{{ fact }}</li>
++        }
++      </ul>
++    }
++  </div>
++</article>
+diff --git a/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts b/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts
+new file mode 100644
+index 0000000..d5bb510
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts
+@@ -0,0 +1,37 @@
++import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
++import { Instrument } from '../../../../core/models/instrument.model';
++import { InstrumentView } from '../../../../core/services/instruments.service';
++import { dateRange } from '../../../../core/utils/date-format';
++
++/**
++ * Instrumento do acervo, em linha (catálogo) ou em cartão (galeria).
++ * Ainda não abre detalhes: quando a tela de detalhe existir, o evento `choose` já está pronto.
++ */
++@Component({
++  selector: 'app-instrument-card',
++  standalone: false,
++  templateUrl: './instrument-card.component.html',
++  styleUrl: './instrument-card.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentCardComponent {
++  readonly instrument = input.required<Instrument>();
++  readonly view = input<InstrumentView>('list');
++  readonly choose = output<Instrument>();
++
++  /** "#ITEM-004" (id do item_acervo). */
++  protected readonly code = computed(() => `#ITEM-${String(this.instrument().id).padStart(3, '0')}`);
++  /** "Ano 1964 • Del Vecchio" */
++  protected readonly meta = computed(() => {
++    const { year, maker } = this.instrument();
++    return [year ? `Ano ${year}` : null, maker].filter(Boolean).join(' • ');
++  });
++  protected readonly facts = computed(() => {
++    const { acquiredAt, origin, formerOwner } = this.instrument();
++    return [
++      acquiredAt ? `Adquirido em ${dateRange(acquiredAt)}` : null,
++      origin ? `Origem: ${origin}` : null,
++      formerOwner ? `Antigo dono: ${formerOwner}` : null,
++    ].filter((f): f is string => !!f);
++  });
++}
+diff --git a/src/app/pages/instruments/instruments.component.css b/src/app/pages/instruments/instruments.component.css
+new file mode 100644
+index 0000000..cff7ccf
+--- /dev/null
++++ b/src/app/pages/instruments/instruments.component.css
+@@ -0,0 +1,209 @@
++:host {
++  display: block;
++  flex: none;
++  max-width: 100%;
++  overflow-x: clip;
++}
++
++.page {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 1.25rem;
++  padding: 0.5rem 1.5rem 11rem;
++}
++.page > * {
++  min-width: 0;
++}
++/* no mobile os filtros e a faixa do museu vão até a borda direita da tela */
++app-filter-chips,
++app-museum-banner {
++  margin-right: -1.5rem;
++}
++
++/* ---------- topo ---------- */
++.crumbs,
++.lead {
++  display: none;
++}
++.eyebrow {
++  margin: 0 0 0.4rem;
++  font: 600 0.7rem var(--font-text);
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++h1 {
++  margin: 0;
++  font: 700 2rem/1.1 var(--font-title);
++  color: var(--ink);
++}
++.stats {
++  display: none;
++}
++
++/* ---------- ferramentas ---------- */
++.toolbar {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 0.7rem;
++}
++.sort select {
++  width: 100%;
++  padding: 0.7rem 1rem;
++  border: 1px solid rgba(223, 210, 196, 0.9);
++  border-radius: 999px;
++  background: #fffdf8;
++  font: 500 0.82rem var(--font-text);
++  color: var(--ink);
++}
++.sort select:focus-visible {
++  outline: 2px solid var(--gold-500);
++}
++.views {
++  display: none;
++}
++
++/* ---------- lista ---------- */
++.list {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 0.9rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++.list > li {
++  min-width: 0;
++}
++.views button {
++  padding: 0.45rem 1.1rem;
++  border: 0;
++  border-radius: 999px;
++  background: none;
++  font: 500 0.78rem var(--font-text);
++  color: #6e6454;
++  cursor: pointer;
++}
++.views button.on {
++  background: #fff;
++  color: var(--ink);
++  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
++}
++
++.state {
++  margin: 0;
++  font: italic 400 1.05rem var(--font-text);
++  color: var(--muted);
++}
++.state button {
++  margin-top: 0.5rem;
++  padding: 0.4rem 1rem;
++  border: 1px solid var(--gold-500);
++  border-radius: 999px;
++  background: none;
++  font: 500 0.75rem var(--font-text);
++  color: var(--gold-700);
++  cursor: pointer;
++}
++
++/* ---------- desktop ---------- */
++@media (min-width: 1024px) {
++  .page {
++    max-width: 80rem;
++    margin: 0 auto;
++    padding: 2rem 1.5rem 8rem;
++    gap: 1.75rem;
++  }
++  app-filter-chips,
++  app-museum-banner {
++    margin-right: 0;
++  }
++
++  .hero {
++    display: grid;
++    grid-template-columns: minmax(0, 1fr) 20rem;
++    gap: 3rem;
++    align-items: center;
++    padding: 2.5rem 3rem;
++    border-radius: 1.5rem;
++    border: 1px solid rgba(197, 154, 69, 0.25);
++    background: linear-gradient(160deg, #fffdf8, var(--gold-100));
++  }
++  .crumbs {
++    display: block;
++    margin: 0 0 1.4rem;
++    font: 500 0.7rem var(--font-text);
++    letter-spacing: 0.1em;
++    text-transform: uppercase;
++    color: var(--muted);
++  }
++  .crumbs i {
++    margin: 0 0.4rem;
++    font-style: normal;
++    color: #b3a999;
++  }
++  .crumbs strong {
++    color: var(--gold-700);
++  }
++  h1 {
++    font-size: 3rem;
++  }
++  .lead {
++    display: block;
++    max-width: 40rem;
++    margin: 1rem 0 0;
++    font: 400 1rem/1.6 var(--font-text);
++    color: #5b5348;
++  }
++
++  .stats {
++    display: grid;
++    gap: 0.8rem;
++    margin: 0;
++  }
++  .stats > div {
++    display: flex;
++    flex-direction: column-reverse;
++    padding: 0.9rem 1.2rem;
++    border-radius: 0.9rem;
++    border: 1px solid rgba(197, 154, 69, 0.25);
++    background: #fff;
++    box-shadow: 0 2px 8px rgba(60, 45, 20, 0.06);
++  }
++  .stats dd {
++    margin: 0;
++    font: 700 1.8rem/1 var(--font-title);
++    font-variant-numeric: tabular-nums;
++    color: var(--ink);
++  }
++  .stats dt {
++    margin-bottom: 0.3rem;
++    font: 600 0.66rem var(--font-text);
++    letter-spacing: 0.1em;
++    text-transform: uppercase;
++    color: var(--gold-700);
++  }
++
++  .toolbar {
++    grid-template-columns: minmax(0, 1fr) 16rem auto;
++    align-items: center;
++    gap: 1rem;
++    padding: 1rem;
++    border-radius: 1rem;
++    background: #f1ebde;
++  }
++  .views {
++    display: flex;
++    padding: 0.2rem;
++    border-radius: 999px;
++    background: #e4dac5;
++  }
++
++  .list {
++    gap: 1.1rem;
++  }
++  .list--grid {
++    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
++    gap: 1.5rem;
++  }
++}
+diff --git a/src/app/pages/instruments/instruments.component.html b/src/app/pages/instruments/instruments.component.html
+new file mode 100644
+index 0000000..e6024f2
+--- /dev/null
++++ b/src/app/pages/instruments/instruments.component.html
+@@ -0,0 +1,81 @@
++<div class="page">
++  <!-- mobile: marca e perfil (no desktop isso fica no menu) -->
++  <app-mobile-head />
++
++  <section class="hero">
++    <div class="hero__text">
++      <p class="crumbs">Museu da Música Itu <i>/</i> Acervo <i>/</i> <strong>Instrumentos</strong></p>
++      <p class="eyebrow">Coleção organológica • Timbres históricos</p>
++      <h1>Instrumentos do Acervo</h1>
++      <p class="lead">
++        Instrumentos originais preservados pelo museu, catalogados com tipo, fabricante, ano de fabricação e estado de conservação.
++      </p>
++    </div>
++
++    <dl class="stats">
++      <div>
++        <dd>{{ instruments.all().length }}</dd>
++        <dt>Instrumentos catalogados</dt>
++      </div>
++      <div>
++        <dd>{{ instruments.types().length }}</dd>
++        <dt>Tipos de instrumento</dt>
++      </div>
++      @if (instruments.oldestYear(); as year) {
++        <div>
++          <dd>{{ year }}</dd>
++          <dt>Fabricação mais antiga</dt>
++        </div>
++      }
++    </dl>
++  </section>
++
++  <app-filter-chips label="Tipo de instrumento" [options]="chips()" [value]="instruments.type() ?? 'all'" (valueChange)="onType($event)" />
++
++  <div class="toolbar">
++    <app-search-field
++      class="toolbar__search"
++      placeholder="Buscar por instrumento, fabricante, ano ou antigo dono..."
++      [value]="library.query()"
++      (valueChange)="onSearch($event)"
++    />
++    <label class="sort">
++      <span class="sr-only">Ordenar por</span>
++      <select [value]="instruments.sort()" (change)="onSort($event)">
++        @for (sort of sorts; track sort.id) {
++          <option [value]="sort.id" [selected]="sort.id === instruments.sort()">{{ sort.label }}</option>
++        }
++      </select>
++    </label>
++    <div class="views" role="group" aria-label="Modo de exibição">
++      @for (view of views; track view.id) {
++        <button type="button" [class.on]="instruments.view() === view.id" [attr.aria-pressed]="instruments.view() === view.id" (click)="instruments.view.set(view.id)">
++          {{ view.label }}
++        </button>
++      }
++    </div>
++  </div>
++
++  @if (instruments.status() === 'error') {
++    <div class="state">
++      <p>{{ instruments.error() }}</p>
++      <button type="button" (click)="home.reload()">Tentar novamente</button>
++    </div>
++  } @else if (instruments.status() === 'loading') {
++    <p class="state">Carregando o acervo…</p>
++  } @else if (instruments.filtered().length === 0) {
++    <p class="state">
++      {{ instruments.all().length ? 'Nenhum instrumento encontrado para esta busca.' : 'Nenhum instrumento cadastrado no acervo ainda.' }}
++    </p>
++  }
++
++  <ul class="list" [class.list--grid]="instruments.view() === 'grid'">
++    @for (instrument of instruments.filtered(); track instrument.id) {
++      <li><app-instrument-card [instrument]="instrument" [view]="instruments.view()" /></li>
++    }
++  </ul>
++
++  @if (home.museum(); as museum) {
++    <app-museum-banner [museum]="museum" [rooms]="home.rooms()" [capacity]="home.totalCapacity()" />
++  }
++</div>
+diff --git a/src/app/pages/instruments/instruments.component.ts b/src/app/pages/instruments/instruments.component.ts
+new file mode 100644
+index 0000000..491b7bf
+--- /dev/null
++++ b/src/app/pages/instruments/instruments.component.ts
+@@ -0,0 +1,52 @@
++import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
++import { HomeService } from '../../core/services/home.service';
++import { InstrumentSort, InstrumentsService, InstrumentView } from '../../core/services/instruments.service';
++import { LibraryService } from '../../core/services/library.service';
++import { ChipOption } from '../../shared/filter-chips/filter-chips.component';
++
++/** Tela "Instrumentos": listagem do acervo de instrumentos (instrumento + item_acervo). */
++@Component({
++  selector: 'app-instruments',
++  standalone: false,
++  templateUrl: './instruments.component.html',
++  styleUrl: './instruments.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentsComponent implements OnInit {
++  protected readonly instruments = inject(InstrumentsService);
++  protected readonly library = inject(LibraryService);
++  protected readonly home = inject(HomeService);
++
++  protected readonly sorts: { id: InstrumentSort; label: string }[] = [
++    { id: 'name', label: 'Nome (A–Z)' },
++    { id: 'oldest', label: 'Mais antigos primeiro' },
++    { id: 'newest', label: 'Mais recentes primeiro' },
++    { id: 'maker', label: 'Fabricante (A–Z)' },
++  ];
++  protected readonly views: { id: InstrumentView; label: string }[] = [
++    { id: 'list', label: 'Catálogo' },
++    { id: 'grid', label: 'Galeria' },
++  ];
++
++  protected readonly chips = computed<ChipOption[]>(() => [
++    { id: 'all', label: 'Todos os Instrumentos', count: this.instruments.all().length },
++    ...this.instruments.types().map((t) => ({ id: t.type, label: t.type, count: t.count })),
++  ]);
++
++  ngOnInit(): void {
++    void this.instruments.load();
++    void this.home.load();
++  }
++
++  protected onType(id: string): void {
++    this.instruments.type.set(id === 'all' ? null : id);
++  }
++
++  protected onSort(event: Event): void {
++    this.instruments.sort.set((event.target as HTMLSelectElement).value as InstrumentSort);
++  }
++
++  protected onSearch(query: string): void {
++    this.library.query.set(query);
++  }
++}
+diff --git a/src/app/pages/instruments/instruments.module.ts b/src/app/pages/instruments/instruments.module.ts
+new file mode 100644
+index 0000000..8a9f266
+--- /dev/null
++++ b/src/app/pages/instruments/instruments.module.ts
+@@ -0,0 +1,14 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { RouterModule } from '@angular/router';
++import { SharedModule } from '../../shared/shared.module';
++import { HomeComponentsModule } from '../home/components/home-components.module';
++import { InstrumentCardComponent } from './components/instrument-card/instrument-card.component';
++import { InstrumentsComponent } from './instruments.component';
++
++/** Tela Instrumentos (listagem do acervo), carregada sob demanda. */
++@NgModule({
++  declarations: [InstrumentsComponent, InstrumentCardComponent],
++  imports: [CommonModule, SharedModule, HomeComponentsModule, RouterModule.forChild([{ path: '', component: InstrumentsComponent }])],
++})
++export class InstrumentsModule {}
+diff --git a/src/app/shared/filter-chips/filter-chips.component.css b/src/app/shared/filter-chips/filter-chips.component.css
+new file mode 100644
+index 0000000..5098146
+--- /dev/null
++++ b/src/app/shared/filter-chips/filter-chips.component.css
+@@ -0,0 +1,47 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.chips {
++  display: flex;
++  gap: 0.5rem;
++  overflow-x: auto;
++  padding: 0.15rem 1.5rem 0.4rem 0;
++  scrollbar-width: none;
++}
++.chips::-webkit-scrollbar {
++  display: none;
++}
++
++.chip {
++  flex: none;
++  padding: 0.55rem 1.1rem;
++  border: 1px solid rgba(197, 154, 69, 0.3);
++  border-radius: 999px;
++  background: #fffdf8;
++  font: 500 0.8rem var(--font-text);
++  color: var(--ink);
++  cursor: pointer;
++  transition: background 0.2s, color 0.2s, border-color 0.2s;
++}
++.chip:hover {
++  border-color: var(--gold-500);
++}
++.chip.on {
++  border-color: var(--ink);
++  background: var(--ink);
++  color: #fff;
++}
++.chip__count {
++  margin-left: 0.2rem;
++  font-size: 0.72rem;
++  opacity: 0.65;
++}
++
++@media (min-width: 1024px) {
++  .chips {
++    flex-wrap: wrap;
++    padding-right: 0;
++  }
++}
+diff --git a/src/app/shared/filter-chips/filter-chips.component.html b/src/app/shared/filter-chips/filter-chips.component.html
+new file mode 100644
+index 0000000..e50f4d6
+--- /dev/null
++++ b/src/app/shared/filter-chips/filter-chips.component.html
+@@ -0,0 +1,10 @@
++<div class="chips" role="group" [attr.aria-label]="label()">
++  @for (option of options(); track option.id) {
++    <button type="button" class="chip" [class.on]="option.id === value()" [attr.aria-pressed]="option.id === value()" (click)="valueChange.emit(option.id)">
++      {{ option.label }}
++      @if (option.count !== undefined) {
++        <span class="chip__count">({{ option.count }})</span>
++      }
++    </button>
++  }
++</div>
+diff --git a/src/app/shared/filter-chips/filter-chips.component.ts b/src/app/shared/filter-chips/filter-chips.component.ts
+new file mode 100644
+index 0000000..4170766
+--- /dev/null
++++ b/src/app/shared/filter-chips/filter-chips.component.ts
+@@ -0,0 +1,23 @@
++import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++
++export interface ChipOption {
++  id: string;
++  label: string;
++  /** Quantidade mostrada entre parênteses, ex.: "Piano (12)". */
++  count?: number;
++}
++
++/** Grupo de chips de filtro (um selecionado por vez), com rolagem horizontal quando não cabe. */
++@Component({
++  selector: 'app-filter-chips',
++  standalone: false,
++  templateUrl: './filter-chips.component.html',
++  styleUrl: './filter-chips.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class FilterChipsComponent {
++  readonly options = input.required<ChipOption[]>();
++  readonly value = input.required<string>();
++  readonly label = input('Filtros');
++  readonly valueChange = output<string>();
++}
+diff --git a/src/app/shared/shared.module.ts b/src/app/shared/shared.module.ts
+index 4d1856f..ce9d507 100644
+--- a/src/app/shared/shared.module.ts
++++ b/src/app/shared/shared.module.ts
+@@ -3,14 +3,15 @@ import { NgModule } from '@angular/core';
+ import { RouterModule } from '@angular/router';
+ import { CassetteTapeComponent } from './cassette-tape/cassette-tape.component';
+ import { CdDiscComponent } from './cd-disc/cd-disc.component';
++import { FilterChipsComponent } from './filter-chips/filter-chips.component';
+ import { MobileHeadComponent } from './mobile-head/mobile-head.component';
+ import { SearchFieldComponent } from './search-field/search-field.component';
+ import { VinylDiscComponent } from './vinyl-disc/vinyl-disc.component';
+ 
+-/** Disco de vinil, CD, fita K7, campo de busca e cabeçalho mobile: usados em várias telas. */
++/** Disco de vinil, CD, fita K7, campo de busca, chips de filtro e cabeçalho mobile: usados em várias telas. */
+ @NgModule({
+-  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, MobileHeadComponent],
++  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, MobileHeadComponent, FilterChipsComponent],
+   imports: [CommonModule, RouterModule],
+-  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, MobileHeadComponent],
++  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, MobileHeadComponent, FilterChipsComponent],
+ })
+ export class SharedModule {}

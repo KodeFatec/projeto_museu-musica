@@ -76,6 +76,30 @@ export interface PartituraDto {
   id_usuario_cadastro: number | null;
 }
 
+/** `instrumento` + `item_acervo` — GET /api/instrumentos (planned). */
+export interface InstrumentoDto {
+  id_item: number;
+  titulo: string;
+  descricao: string | null;
+  origem: string | null;
+  data_aquisicao: string | null;
+  estado_conservacao: string | null;
+  tipo_instrumento: string | null;
+  fabricante: string | null;
+  ano_fabricacao: number | null;
+  antigo_dono: string | null;
+  midias?: MidiaDto[];
+}
+
+/** Media files attached to an archive item. */
+export interface MidiaDto {
+  id_midia: number;
+  id_item: number;
+  tipo_midia: string | null;
+  arquivo_url: string;
+  descricao: string | null;
+}
+
 /** Tabela `musica_favorita` — GET/POST /api/musicas-favoritas (existe; DELETE é PLANEJADO). */
 export interface MusicaFavoritaDto {
   id_usuario: number;

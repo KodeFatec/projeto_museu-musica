@@ -1,0 +1,21 @@
+<main class="page">
+  <p class="eyebrow">Coleção organológica</p>
+  <h1>Instrumentos do Acervo</h1>
+  <p class="lead">Instrumentos originais preservados pelo museu, catalogados com tipo, fabricante, ano e estado de conservação.</p>
+  <app-filter-chips label="Tipo de instrumento" [options]="chips()" [value]="instruments.type() ?? 'all'" (valueChange)="onType($event)" />
+  <div class="toolbar">
+    <app-search-field placeholder="Buscar por instrumento, fabricante, ano ou antigo dono..." [value]="library.query()" (valueChange)="library.query.set($event)" />
+    <label><span class="sr-only">Ordenar por</span><select [value]="instruments.sort()" (change)="onSort($event)">
+      @for (sort of sorts; track sort.id) { <option [value]="sort.id">{{ sort.label }}</option> }
+    </select></label>
+  </div>
+  @if (instruments.status() === 'loading') {
+    <p class="state">Carregando o acervo...</p>
+  } @else if (instruments.status() === 'error') {
+    <p class="state">{{ instruments.error() }} <button type="button" (click)="retry()">Tentar novamente</button></p>
+  } @else if (!instruments.filtered().length) {
+    <p class="state">Nenhum instrumento encontrado.</p>
+  } @else {
+    <ul class="list">@for (instrument of instruments.filtered(); track instrument.id) { <li><app-instrument-card [instrument]="instrument" /></li> }</ul>
+  }
+</main>

@@ -31,10 +31,10 @@ export class AppComponent implements OnInit {
     void this.library.load();
   }
 
-  /** A busca do menu filtra o acervo; fora do Início e do Perfil, leva para o Início. */
+  /** A busca do menu filtra o acervo; fora do Início, Perfil e Instrumentos, leva para o Início. */
   protected onSearch(query: string): void {
     this.library.query.set(query);
     const url = this.router.url;
-    if (!url.startsWith('/inicio') && !url.startsWith('/perfil')) void this.router.navigate(['/inicio']);
+    if (!['/inicio', '/perfil', '/instrumentos'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
   }
 }

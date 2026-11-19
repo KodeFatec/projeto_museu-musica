@@ -1,0 +1,11 @@
+:host { display: block; }
+.page { max-width: 80rem; margin: 0 auto; padding: 2rem 1.5rem 8rem; }
+.eyebrow { margin: 0 0 .4rem; font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-700); }
+h1 { margin: 0; font: 700 2.5rem/1.1 var(--font-title); color: var(--ink); }
+.lead { max-width: 42rem; color: var(--muted); }
+.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 1rem; align-items: center; margin: 1rem 0 1.5rem; padding: 1rem; border-radius: 1rem; background: #f1ebde; }
+select { width: 100%; padding: .7rem 1rem; border: 1px solid #dfd2c4; border-radius: 999px; background: #fffdf8; }
+.list { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.state { color: var(--muted); }
+button { padding: .4rem .8rem; border: 1px solid var(--gold-500); border-radius: 999px; background: transparent; cursor: pointer; }
+@media (max-width: 700px) { .page { padding: 1rem 1rem 7rem; } h1 { font-size: 2rem; } .toolbar { grid-template-columns: 1fr; } }

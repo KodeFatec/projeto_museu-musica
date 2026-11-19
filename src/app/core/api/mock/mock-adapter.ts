@@ -48,6 +48,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     generos: { rows: () => db.generos as unknown as Row[], idKey: 'id_genero' },
     atividades: { rows: () => db.atividades as unknown as Row[], idKey: 'id_atividade' },
     salas: { rows: () => db.salas as unknown as Row[], idKey: 'id_sala' },
+    instrumentos: { rows: () => db.instrumentos as unknown as Row[], idKey: 'id_item' },
     'musica-artista': {
       rows: () => filterBy(db.musicaArtista as unknown as Row[], 'id_musica', query['id_musica']),
       idKey: 'id_musica',
