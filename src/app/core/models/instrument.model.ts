@@ -10,4 +10,5 @@ export interface Instrument {
   formerOwner?: string;
   acquiredAt?: Date;
   photoUrl?: string;
+  audioUrl?: string;
 }

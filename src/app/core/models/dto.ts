@@ -73,7 +73,7 @@ export interface PartituraDto {
   autor: string | null;
   ano_criacao: number | null;
   arquivo_url: string | null;
-  id_usuario_cadastro: number | null;
+  id_usuario_cadastro: string | number | null;
 }
 
 /** `instrumento` + `item_acervo` — GET /api/instrumentos (planned). */
@@ -102,7 +102,7 @@ export interface MidiaDto {
 
 /** Tabela `musica_favorita` — GET/POST /api/musicas-favoritas (existe; DELETE é PLANEJADO). */
 export interface MusicaFavoritaDto {
-  id_usuario: number;
+  id_usuario: string | number;
   id_musica: number;
   data_favoritada: string;
 }
@@ -110,18 +110,19 @@ export interface MusicaFavoritaDto {
 /** Tabela `historico_musica` — /api/historico_musica (existe). */
 export interface HistoricoMusicaDto {
   id_historico: number;
-  id_usuario: number;
+  id_usuario: string | number;
   id_musica: number;
   data_reproducao: string;
   /** "HH:MM:SS" */
   progresso: string | null;
 }
 
-/** Tabela `usuario` — GET /api/usuarios/:id (PLANEJADA). Nunca inclui senha_hash. */
+/** Tabela `usuario` — GET /api/usuarios/:id. Nunca inclui senha_hash. */
 export interface UsuarioDto {
-  id_usuario: number;
+  id_usuario: string | number;
   nome: string;
   email: string;
+  cpf?: string | null;
   telefone: string | null;
   data_cadastro: string;
 }
@@ -171,4 +172,30 @@ export interface SalaDto {
   nome: string;
   descricao: string | null;
   capacidade: number | null;
+}
+
+/** POST /api/auth/login (PLANEJADA). `login` é o e-mail ou o CPF do usuário (usuario.email / usuario.cpf). */
+export interface LoginRequest {
+  login: string;
+  senha: string;
+}
+
+/**
+ * POST /api/auth/register (PLANEJADA): cria o `usuario` (a senha vira `senha_hash` no backend)
+ * e o perfil padrão em `usuario_perfil`. `cpf` vai só com os 11 dígitos.
+ */
+export interface RegisterRequest {
+  nome: string;
+  cpf: string;
+  email: string;
+  senha: string;
+  telefone?: string;
+}
+
+/** Resposta de login e cadastro: um JWT cujo `sub` é o `usuario.id_usuario`. */
+export interface AuthResponse {
+  token: string;
+  usuario?: UsuarioDto;
+  dados?: UsuarioDto;
+  mensagem?: string;
 }

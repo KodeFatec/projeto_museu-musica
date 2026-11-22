@@ -39,7 +39,7 @@ export class InstrumentsService {
     const query = normalize(this.library.query().trim());
     const visible = this.instruments().filter((instrument) => {
       const text = normalize(
-        [instrument.title, instrument.type, instrument.maker, instrument.formerOwner, instrument.description, instrument.origin, instrument.year]
+        [instrument.title, instrument.type, instrument.maker, instrument.description, instrument.origin, instrument.year]
           .filter(Boolean)
           .join(' '),
       );

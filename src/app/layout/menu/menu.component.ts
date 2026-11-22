@@ -32,6 +32,9 @@ export class MenuComponent {
   /** Nome e função do usuário (usuario.nome + perfil_usuario.nome). */
   readonly userName = input('Visitante');
   readonly userRole = input('Visitante');
+  /** Quem está logado vê nome e "Sair"; visitante vê "Entrar". */
+  readonly loggedIn = input(false);
+  readonly logout = output<void>();
   readonly searchChange = output<string>();
 
   /** Mesmos links no desktop e no mobile (o mobile ainda tem o player no centro). */

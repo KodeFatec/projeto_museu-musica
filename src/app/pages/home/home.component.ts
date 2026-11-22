@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, OnIni
 import { Router } from '@angular/router';
 import { ArtistSummary } from '../../core/models/event.model';
 import { Track } from '../../core/models/track.model';
+import { AuthService } from '../../core/auth/auth.service';
 import { HomeService } from '../../core/services/home.service';
 import { FormatFilter, LibraryService } from '../../core/services/library.service';
 import { PlayerService } from '../../core/services/player.service';
@@ -22,6 +23,7 @@ export class HomeComponent implements OnInit {
   protected readonly home = inject(HomeService);
   protected readonly library = inject(LibraryService);
   protected readonly user = inject(UserService);
+  protected readonly auth = inject(AuthService);
   private readonly player = inject(PlayerService);
   private readonly router = inject(Router);
 

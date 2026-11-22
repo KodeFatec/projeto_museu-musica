@@ -48,7 +48,7 @@ export interface ScoreSheet {
 }
 
 export interface UserProfile {
-  id: number;
+  id: string | number;
   name: string;
   email?: string;
   /** perfil_usuario.nome (ex.: "Curador Associado"). */

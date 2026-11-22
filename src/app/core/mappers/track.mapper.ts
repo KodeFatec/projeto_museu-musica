@@ -77,6 +77,6 @@ export function toUserProfile(user: UsuarioDto, roles: PerfilUsuarioDto[]): User
     id: user.id_usuario,
     name: user.nome,
     email: user.email,
-    role: roles[0]?.nome ?? 'Visitante',
+    role: roles[0]?.nome ?? 'Usuário',
   };
 }

@@ -1,0 +1,51 @@
+<p class="tag">Novo ouvinte</p>
+<h1>Criar conta no Portal</h1>
+<p class="lead">Cadastre-se gratuitamente para guardar seu histórico de escuta e favoritar as músicas do acervo.</p>
+
+<form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <app-auth-field label="Nome completo" for="name" [control]="form.controls.name" [submitted]="submitted()">
+    <input id="name" type="text" formControlName="name" autocomplete="name" placeholder="Seu nome" />
+  </app-auth-field>
+
+  <div class="row">
+    <app-auth-field label="CPF" for="cpf" [control]="form.controls.cpf" [submitted]="submitted()">
+      <input id="cpf" type="text" formControlName="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" (input)="maskCpf($event)" />
+    </app-auth-field>
+    <app-auth-field label="Telefone" for="phone" [control]="form.controls.phone" [submitted]="submitted()" hint="Opcional">
+      <input id="phone" type="tel" formControlName="phone" autocomplete="tel" placeholder="(11) 90000-0000" />
+    </app-auth-field>
+  </div>
+
+  <app-auth-field label="E-mail" for="email" [control]="form.controls.email" [submitted]="submitted()">
+    <input id="email" type="email" formControlName="email" autocomplete="email" placeholder="voce@exemplo.com" />
+  </app-auth-field>
+
+  <div class="row">
+    <app-auth-field label="Senha" for="password" [control]="form.controls.password" [submitted]="submitted()" hint="Mínimo de 8 caracteres">
+      <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="new-password" placeholder="Crie uma senha" />
+    </app-auth-field>
+    <app-auth-field label="Confirmar senha" for="confirm" [control]="form.controls.confirm" [submitted]="submitted()">
+      <input id="confirm" [type]="showPassword() ? 'text' : 'password'" formControlName="confirm" autocomplete="new-password" placeholder="Repita a senha" />
+    </app-auth-field>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" [checked]="showPassword()" (change)="showPassword.set(!showPassword())" />
+    <span>Mostrar as senhas</span>
+  </label>
+
+  @if (error(); as message) {
+    <p class="alert" role="alert">{{ message }}</p>
+  }
+
+  <button type="submit" class="submit" [disabled]="busy()">
+    {{ busy() ? 'Criando conta…' : 'Criar conta e entrar' }}
+  </button>
+</form>
+
+<p class="switch">
+  Já tem uma conta?
+  <a routerLink="/login" [queryParams]="redirect ? { redirect } : null">Entrar</a>
+  <span class="sep">•</span>
+  <a routerLink="/inicio">Continuar como visitante</a>
+</p>

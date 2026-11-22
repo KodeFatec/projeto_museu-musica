@@ -1,5 +1,5 @@
-import { computed, Injectable, signal } from '@angular/core';
-import { environment } from '../../../environments/environment';
+import { computed, effect, Injectable, signal, untracked } from '@angular/core';
+import { AuthService } from '../auth/auth.service';
 import { toApiError } from '../api/api-error';
 import { HistoricoMusicaDto, MusicaFavoritaDto } from '../models/dto';
 import { Track } from '../models/track.model';
@@ -18,8 +18,6 @@ const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036
 /** Biblioteca do usuário: favoritas (musica_favorita) e histórico (historico_musica) viram as 3 seções da tela. */
 @Injectable({ providedIn: 'root' })
 export class LibraryService {
-  readonly userId = environment.currentUserId;
-
   readonly query = signal('');
   readonly filter = signal<FormatFilter>('all');
   readonly status = signal<LoadStatus>('idle');
@@ -28,6 +26,8 @@ export class LibraryService {
   private readonly favorites = signal<MusicaFavoritaDto[]>([]);
   private readonly history = signal<HistoricoMusicaDto[]>([]);
   private loading?: Promise<void>;
+  /** Usuário cujos dados (favoritas e histórico) estão carregados. */
+  private dataFor: string | number | null | undefined;
 
   readonly likedIds = computed(() => new Set(this.favorites().map((f) => f.id_musica)));
 
@@ -56,7 +56,14 @@ export class LibraryService {
     private readonly catalog: CatalogService,
     private readonly favoritesRepo: FavoritesRepository,
     private readonly historyRepo: HistoryRepository,
-  ) {}
+    private readonly auth: AuthService,
+  ) {
+    // quando o usuário entra ou sai, carrega (ou limpa) as favoritas e o histórico
+    effect(() => {
+      const id = this.auth.userId();
+      untracked(() => void this.syncUserData(id));
+    });
+  }
 
   load(): Promise<void> {
     return (this.loading ??= this.fetch());
@@ -90,15 +97,21 @@ export class LibraryService {
 
   /** Atualização otimista: a UI muda na hora e volta atrás se a API falhar. */
   async toggleFavorite(songId: number): Promise<void> {
+    const userId = this.auth.userId();
+    // visitante não favorita: leva ao login e volta para onde estava
+    if (userId === null) {
+      this.auth.requireLogin();
+      return;
+    }
     const wasLiked = this.isLiked(songId);
     const before = this.favorites();
     this.favorites.set(
       wasLiked
         ? before.filter((f) => f.id_musica !== songId)
-        : [...before, { id_usuario: this.userId, id_musica: songId, data_favoritada: new Date().toISOString().slice(0, 19).replace('T', ' ') }],
+        : [...before, { id_usuario: userId, id_musica: songId, data_favoritada: new Date().toISOString().slice(0, 19).replace('T', ' ') }],
     );
     try {
-      await (wasLiked ? this.favoritesRepo.remove(this.userId, songId) : this.favoritesRepo.add(this.userId, songId));
+      await (wasLiked ? this.favoritesRepo.remove(userId, songId) : this.favoritesRepo.add(userId, songId));
     } catch {
       this.favorites.set(before);
     }
@@ -110,18 +123,32 @@ export class LibraryService {
     try {
       await this.catalog.load();
       if (this.catalog.status() === 'error') throw new Error(this.catalog.error() ?? 'Erro ao carregar o catálogo');
-      const [favorites, history] = await Promise.all([
-        this.favoritesRepo.listByUser(this.userId),
-        this.historyRepo.listByUser(this.userId),
-      ]);
-      this.favorites.set(favorites);
-      this.history.set(history);
+      // visitante: sem favoritas nem histórico
+      await this.loadUserData(this.auth.userId());
       this.status.set('ready');
     } catch (e) {
       this.loading = undefined;
       this.error.set(toApiError(e).message);
       this.status.set('error');
     }
+  }
+
+  private async syncUserData(id: string | number | null): Promise<void> {
+    if (this.dataFor === id) return;
+    if (this.status() === 'ready' || id === null) await this.loadUserData(id).catch(() => undefined);
+  }
+
+  private async loadUserData(id: string | number | null): Promise<void> {
+    this.dataFor = id;
+    if (id === null) {
+      this.favorites.set([]);
+      this.history.set([]);
+      return;
+    }
+    const [favorites, history] = await Promise.all([this.favoritesRepo.listByUser(id), this.historyRepo.listByUser(id)]);
+    if (String(this.auth.userId()) !== String(id)) return; // saiu ou trocou de usuário enquanto carregava
+    this.favorites.set(favorites);
+    this.history.set(history);
   }
 
   private tracksOf(ids: number[]): Track[] {

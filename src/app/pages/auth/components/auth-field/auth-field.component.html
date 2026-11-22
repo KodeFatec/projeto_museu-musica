@@ -1,0 +1,15 @@
+<div class="field" [class.field--invalid]="errorMessage()">
+  <div class="field__head">
+    <label [attr.for]="for()">{{ label() }}</label>
+    @if (hint()) {
+      <span class="field__hint">{{ hint() }}</span>
+    }
+  </div>
+  <div class="field__control">
+    <ng-content />
+    <ng-content select="[suffix]" />
+  </div>
+  @if (errorMessage(); as message) {
+    <p class="field__error" role="alert">{{ message }}</p>
+  }
+</div>

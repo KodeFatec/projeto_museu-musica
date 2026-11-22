@@ -15,5 +15,6 @@ export function toInstrument(dto: InstrumentoDto): Instrument {
     formerOwner: dto.antigo_dono ?? undefined,
     acquiredAt: parseDate(dto.data_aquisicao),
     photoUrl: dto.midias?.find((media) => /imagem|image|foto|photo/i.test(media.tipo_midia ?? ''))?.arquivo_url,
+    audioUrl: dto.midias?.find((media) => /audio|som|mp3|wav|ogg/i.test(media.tipo_midia ?? ''))?.arquivo_url,
   };
 }

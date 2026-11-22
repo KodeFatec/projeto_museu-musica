@@ -351,3 +351,11 @@ export const atividadeItens = [
   { id_atividade: 7, id_item: 1, laudo_saida: null, laudo_retorno: null },
   { id_atividade: 8, id_item: 1, laudo_saida: null, laudo_retorno: null },
 ];
+
+/**
+ * Credenciais do mock (no banco real isso é usuario.cpf e usuario.senha_hash, que nunca saem da API).
+ * Usuário de teste: arthur@museu.example (ou CPF 529.982.247-25) com a senha "museu123".
+ */
+export const credenciais: { id_usuario: number; cpf: string; senha: string }[] = [
+  { id_usuario: 1, cpf: '52998224725', senha: 'museu123' },
+];

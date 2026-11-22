@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { AuthService } from './core/auth/auth.service';
 import { LibraryService } from './core/services/library.service';
 import { PlayerService } from './core/services/player.service';
 import { UserService } from './core/services/user.service';
@@ -15,6 +16,7 @@ import { UserService } from './core/services/user.service';
 })
 export class AppComponent implements OnInit {
   protected readonly user = inject(UserService);
+  protected readonly auth = inject(AuthService);
   protected readonly player = inject(PlayerService);
   private readonly library = inject(LibraryService);
   private readonly router = inject(Router);
@@ -23,11 +25,14 @@ export class AppComponent implements OnInit {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects)),
     { initialValue: this.router.url },
   );
+  /** Login e cadastro ocupam a tela toda, sem menu nem mini player. */
+  protected readonly isAuthPage = computed(() => ['/login', '/cadastro'].some((path) => this.url().startsWith(path)));
   /** O mini player some na própria tela Tocando. */
-  protected readonly showMiniPlayer = computed(() => !!this.player.track() && !this.url().startsWith('/tocando'));
+  protected readonly showMiniPlayer = computed(
+    () => !!this.player.track() && !this.url().startsWith('/tocando') && !this.isAuthPage(),
+  );
 
   ngOnInit(): void {
-    void this.user.load();
     void this.library.load();
   }
 

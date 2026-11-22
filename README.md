@@ -12,12 +12,15 @@ Biblioteca (Início) + Tocando unificados. Testado com Angular 19 (funciona do 1
 
 Sem backend: `src/environments/environment.ts` já vem com `useMocks: true` (o Axios responde com dados no
 formato das tabelas, em `core/api/mock`).
-Com backend: `useMocks: false`, suba a API na porta 3000 (ou ajuste o `target` em `proxy.conf.json`).
-O proxy evita o CORS (a API ainda não usa `cors`).
-`environment.currentUserId` é o usuário usado em favoritos/histórico enquanto não há login.
+Com backend: copie `.env.example` para `.env` e configure `BACKEND_URL`, `API_BASE_URL` e `USE_MOCKS=false`.
+As variáveis são carregadas em tempo de build/servidor: ao executar `npm start`, `npm run build` ou `npm test`,
+o arquivo `src/environments/environment.generated.ts` e o `proxy.conf.json` são gerados a partir do `.env`.
+Depois de alterar o `.env`, reinicie o servidor ou execute o build novamente.
+Com o mock, entre com **arthur@museu.example** (ou CPF **529.982.247-25**) e a senha **museu123**; o cadastro
+também funciona (guarda só em memória: some ao recarregar).
 
 ## Rotas
-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /perfil (Minha Biblioteca) · /tocando e /tocando/:id (player) · /descobrir (provisória) · /instrumentos (listagem do acervo)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (provisória) · /instrumentos (listagem do acervo)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -46,7 +49,11 @@ O proxy evita o CORS (a API ainda não usa `cors`).
 | Curtidas / coração | musica_favorita |
 | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
 | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
-| Nome e função no menu | usuario.nome + perfil_usuario.nome |
+| Nome e função no menu | usuario.nome + perfil_usuario.nome (só logado; visitante vê "Visitante" e o botão Entrar) |
+| Login: e-mail ou CPF + senha | usuario.email / usuario.cpf + senha (conferida como `senha_hash` no backend) |
+| Cadastro: nome, CPF, e-mail, telefone, senha | usuario.nome, cpf, email, telefone, senha_hash; perfil padrão em usuario_perfil |
+| Números do painel de login (músicas, artistas, salas) | contagem de musica, artista e sala |
+| Início: "Ouvidas recentemente" (só logado) | historico_musica do usuário (id do JWT) |
 | Eventos: destaque e lista (título, descrição, tipo, datas, status) | atividade.titulo, descricao, tipo_atividade, data_inicio, data_fim_prevista/data_fim_real, status |
 | Sala do evento ("Em cartaz • Sala 02") | atividade_sala + sala.nome |
 | Local fora do museu | atividade.local_externo |
@@ -68,6 +75,14 @@ Cores: azul `#0927a9` (poucos destaques) e dourado/bege `#c59a45` + subtons. Fon
 
 Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo id da música.
 
+## Autenticação (JWT)
+- `POST /api/auth/login` com `{ login, senha }` (`login` = e-mail ou CPF só com dígitos) -> `200 { token }`; senha ou usuário errados -> `401 { erro }`.
+- `POST /api/auth/register` com `{ nome, cpf, email, senha, telefone? }` (`cpf` só com dígitos) -> `201 { token }` (já entra logado);
+  `409 { erro }` para e-mail/CPF repetido; `400 { erro, detalhes: [{ campo, mensagem }] }` para dados inválidos (cada `campo` aparece no formulário).
+- O token precisa ter `sub` = `usuario.id_usuario` e `exp`. O front só decodifica (quem confere a assinatura é a API) e manda `Authorization: Bearer <token>` em toda requisição.
+- "Manter conectado" guarda o token no `localStorage`; sem isso, no `sessionStorage`. Token vencido ou resposta 401 derrubam a sessão.
+- Visitante: vê o site, mas não vê "Ouvidas recentemente", não grava histórico, e **favoritar** ou abrir **/perfil** leva ao login (que depois volta para onde estava).
+
 ## Rotas da API
 Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
 Planejadas (o front já chama; no mock funcionam):
@@ -75,6 +90,7 @@ Planejadas (o front já chama; no mock funcionam):
 - GET /instrumentos (JOIN instrumento + item_acervo, com `midias`)
 - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
 - GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
+- POST /auth/login e POST /auth/register (veja a seção Autenticação)
 - GET /usuarios/:id  e  GET /usuarios/:id/perfis  (sem senha_hash)
 - DELETE /musicas-favoritas/:id_usuario/:id_musica
 - Filtros ?id_musica= (letra_trecho, partituras, musica-artista) e ?id_usuario= (favoritas, historico)

@@ -31,6 +31,13 @@ const filterBy = (rows: Row[], key: string, value?: unknown) =>
     ? rows
     : rows.filter((r) => String(r[key]) === String(value));
 const nowSql = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+/** JWT de mentira (sem assinatura de verdade) com sub = id do usuário, válido por 1 hora. */
+const mockToken = (userId: string | number): string => {
+  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const now = Math.floor(Date.now() / 1000);
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: String(userId), iat: now, exp: now + 3600 })}.mock`;
+};
+
 const parseBody = (data: unknown): Row =>
   typeof data === 'string' && data ? JSON.parse(data) : ((data as Row) ?? {});
 
@@ -71,12 +78,49 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     },
   };
 
+  // --- login e cadastro (rotas planejadas): devolvem um JWT { token }
+  if (resource === 'auth' && method === 'post') {
+    if (first === 'login') {
+      const login = String(body['login'] ?? '').trim().toLowerCase();
+      const digits = login.replace(/\D/g, '');
+      const user =
+        db.usuarios.find((u) => u.email.toLowerCase() === login) ??
+        db.usuarios.find((u) => db.credenciais.some((c) => c.id_usuario === u.id_usuario && digits !== '' && c.cpf === digits));
+      const credential = db.credenciais.find((c) => c.id_usuario === user?.id_usuario);
+      if (!user || !credential || credential.senha !== String(body['senha'] ?? '')) return fail(config, 401, 'Credenciais inválidas');
+      return respond(config, { token: mockToken(user.id_usuario) });
+    }
+    if (first === 'register') {
+      const cpf = String(body['cpf'] ?? '').replace(/\D/g, '');
+      const email = String(body['email'] ?? '').trim().toLowerCase();
+      const name = String(body['nome'] ?? '').trim();
+      const password = String(body['senha'] ?? '');
+      const details = [
+        name.length < 3 ? { campo: 'nome', mensagem: 'Informe o nome completo' } : null,
+        cpf.length !== 11 ? { campo: 'cpf', mensagem: 'CPF inválido' } : null,
+        !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { campo: 'email', mensagem: 'E-mail inválido' } : null,
+        password.length < 8 ? { campo: 'senha', mensagem: 'A senha precisa de pelo menos 8 caracteres' } : null,
+      ].filter(Boolean);
+      if (details.length) {
+        throw new AxiosError('Dados inválidos', 'ERR_BAD_REQUEST', config, null, respond(config, { erro: 'Dados inválidos', detalhes: details }, 400));
+      }
+      if (db.usuarios.some((u) => u.email.toLowerCase() === email) || db.credenciais.some((c) => c.cpf === cpf)) {
+        return fail(config, 409, 'E-mail ou CPF já cadastrado');
+      }
+      const id = (Math.max(0, ...db.usuarios.map((u) => Number(u.id_usuario) || 0)) || 0) + 1;
+      db.usuarios.push({ id_usuario: id, nome: name, email, telefone: (body['telefone'] as string) ?? null, data_cadastro: new Date().toISOString().slice(0, 19).replace('T', ' ') });
+      db.credenciais.push({ id_usuario: id, cpf, senha: password });
+      db.perfisDoUsuario[id] = [{ id_perfil: 2, nome: 'Ouvinte' }];
+      return respond(config, { token: mockToken(id) }, 201);
+    }
+  }
+
   // --- usuários (rota planejada)
   if (resource === 'usuarios' && method === 'get') {
     const user = db.usuarios.find((u) => String(u.id_usuario) === first);
     if (!user) return fail(config, 404, 'Usuário não encontrado');
     return second === 'perfis'
-      ? respond(config, envelope((db.perfisDoUsuario[user.id_usuario] ?? []) as unknown as Row[]))
+      ? respond(config, envelope((db.perfisDoUsuario[Number(user.id_usuario)] ?? []) as unknown as Row[]))
       : respond(config, user);
   }
 

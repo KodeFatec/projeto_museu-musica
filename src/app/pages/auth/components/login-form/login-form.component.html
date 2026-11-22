@@ -1,0 +1,51 @@
+<p class="tag">Portal do ouvinte</p>
+<h1>Entrar no Portal de Audição</h1>
+<p class="lead">Acesse sua conta para ver seu histórico de escuta, favoritar músicas e acompanhar o acervo do museu.</p>
+
+<form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <app-auth-field label="Credencial" for="login" [control]="form.controls.login" [submitted]="submitted()" hint="E-mail ou CPF">
+    <input id="login" type="text" formControlName="login" autocomplete="username" inputmode="email" placeholder="E-mail ou CPF (000.000.000-00)" />
+  </app-auth-field>
+
+  <app-auth-field label="Senha" for="password" [control]="form.controls.password" [submitted]="submitted()">
+    <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" placeholder="Sua senha" />
+    <button suffix type="button" class="eye" [attr.aria-label]="showPassword() ? 'Ocultar senha' : 'Mostrar senha'" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        @if (showPassword()) {
+          <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a11.6 11.6 0 0 1-2.6 3.8M6.4 6.4C4.4 7.8 3 9.9 2.5 12c1 2.5 4.5 7 9.5 7 1.5 0 2.9-.4 4.1-1" />
+        } @else {
+          <path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7Z" /><circle cx="12" cy="12" r="3" />
+        }
+      </svg>
+    </button>
+  </app-auth-field>
+
+  <label class="check">
+    <input type="checkbox" formControlName="remember" />
+    <span>Manter conectado neste dispositivo</span>
+  </label>
+
+  @if (error(); as message) {
+    <p class="alert" role="alert">{{ message }}</p>
+  }
+
+  <button type="submit" class="submit" [disabled]="busy()">
+    {{ busy() ? 'Entrando…' : 'Iniciar sessão de escuta' }}
+  </button>
+</form>
+
+<div class="or"><span>ou explore sem cadastro</span></div>
+
+<section class="visitor">
+  <div>
+    <p class="visitor__tag">Acesso aberto ao público</p>
+    <h2>Tour acústico &amp; acervo aberto</h2>
+    <p class="visitor__text">Navegue pelas músicas, artistas, eventos e instrumentos do museu sem precisar de conta. Para favoritar e guardar seu histórico, entre ou cadastre-se.</p>
+  </div>
+  <a class="visitor__cta" routerLink="/inicio">Explorar como visitante</a>
+</section>
+
+<p class="switch">
+  Ainda não possui conta?
+  <a routerLink="/cadastro" [queryParams]="redirect ? { redirect } : null">Criar conta gratuita</a>
+</p>

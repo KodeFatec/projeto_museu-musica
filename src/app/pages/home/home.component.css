@@ -246,3 +246,16 @@
     padding: 0.4rem 1rem;
   }
 }
+
+/* visitante no mobile: o atalho do perfil vira o botão "Entrar" */
+.profile--login {
+  width: auto;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: var(--gold-600);
+  box-shadow: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}

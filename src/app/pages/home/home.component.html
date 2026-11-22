@@ -6,7 +6,11 @@
         <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
         <span class="brand__name">Museu da Música Itu</span>
       </a>
-      <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
+      @if (auth.isLoggedIn()) {
+        <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
+      } @else {
+        <a class="profile profile--login" routerLink="/login">Entrar</a>
+      }
     </div>
     <app-search-field
       placeholder="Buscar músicas, artistas ou gêneros..."
@@ -82,6 +86,23 @@
       >
         @for (artist of home.artists(); track artist.id; let first = $first) {
           <app-artist-avatar [artist]="artist" [featured]="first" (choose)="openArtist($event)" />
+        }
+      </app-library-section>
+    }
+
+    <!-- histórico de escuta (historico_musica): só aparece para quem fez login -->
+    @if (auth.isLoggedIn()) {
+      <app-library-section
+        title="Ouvidas Recentemente"
+        subtitle="Seu histórico de escuta"
+        accent="blue"
+        minItem="16rem"
+        mobileItem="9rem"
+      >
+        @for (track of library.recentlyPlayed(); track track.id) {
+          <app-track-card [track]="track" (play)="playTrack($event)" />
+        } @empty {
+          <p class="empty">Você ainda não ouviu nenhuma música. Escolha uma na seleção abaixo!</p>
         }
       </app-library-section>
     }

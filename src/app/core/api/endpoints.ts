@@ -9,11 +9,13 @@ export const ENDPOINTS = {
   letras: '/letra_trecho',
   favoritas: '/musicas-favoritas',
   historico: '/historico_musica',
-  generos: '/generos', // PLANEJADA
-  musicaArtista: '/musica-artista', // PLANEJADA
-  usuarios: '/usuarios', // PLANEJADA
-  atividades: '/atividades', // PLANEJADA
-  museu: '/museu', // PLANEJADA
-  salas: '/salas', // PLANEJADA
-  instrumentos: '/instrumentos', // PLANEJADA
+  generos: '/generos-musicais',
+  musicaArtista: '/musica-artista',
+  usuarios: '/usuarios',
+  authLogin: '/auth/login',
+  authRegister: '/auth/register',
+  atividades: '/atividades',
+  museu: '/museus',
+  salas: '/salas',
+  instrumentos: '/instrumentos',
 } as const;

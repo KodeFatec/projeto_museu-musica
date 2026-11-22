@@ -1,0 +1,38 @@
+<div class="auth">
+  <aside class="panel">
+    <a class="brand" routerLink="/inicio">
+      <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
+      <span class="brand__name">Museu da Música Itu</span>
+    </a>
+
+    <div class="panel__body">
+      <p class="eyebrow">Custódia sonora &amp; memória</p>
+      <h2>Preservando a <em>alma sonora</em> brasileira.</h2>
+      <p class="text">Gravações, partituras e instrumentos históricos reunidos em um só lugar, para ouvir, estudar e lembrar.</p>
+
+      @if (stats().length) {
+        <dl class="stats">
+          @for (stat of stats(); track stat.label) {
+            <div>
+              <dd>{{ stat.value }}</dd>
+              <dt>{{ stat.label }}</dt>
+            </div>
+          }
+        </dl>
+      }
+
+      <blockquote class="quote">“A audição não é apenas consumo; é um ato deliberado de preservação histórica.”</blockquote>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="content__inner">
+      @if (mode === 'register') {
+        <app-register-form />
+      } @else {
+        <app-login-form />
+      }
+    </div>
+    <footer class="foot">© {{ year }} Museu da Música Itu • Acervo histórico musical</footer>
+  </main>
+</div>

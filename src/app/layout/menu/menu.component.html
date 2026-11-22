@@ -24,11 +24,22 @@
     </ul>
 
     <div class="profile">
-      <div class="profile__text">
-        <span class="profile__name">{{ userName() }}</span>
-        <span class="profile__role">{{ userRole() }}</span>
-      </div>
-      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+      @if (loggedIn()) {
+        <a class="profile__link" routerLink="/perfil" aria-label="Abrir meu perfil">
+          <div class="profile__text">
+            <span class="profile__name">{{ userName() }}</span>
+            <span class="profile__role">{{ userRole() }}</span>
+          </div>
+          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+        </a>
+        <button type="button" class="logout" (click)="logout.emit()">Sair</button>
+      } @else {
+        <div class="profile__text">
+          <span class="profile__name">Visitante</span>
+          <span class="profile__role">Acesso aberto</span>
+        </div>
+        <a class="login" routerLink="/login">Entrar</a>
+      }
     </div>
   </nav>
 </header>

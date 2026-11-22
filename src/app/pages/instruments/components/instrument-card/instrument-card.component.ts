@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, OnDestroy, signal } from '@angular/core';
 import { Instrument } from '../../../../core/models/instrument.model';
 import { dateRange } from '../../../../core/utils/date-format';
 
@@ -26,10 +26,22 @@ import { dateRange } from '../../../../core/utils/date-format';
         @if (instrument().description) { <p class="description">{{ instrument().description }}</p> }
       </div>
       <div class="details">
-        @if (instrument().condition) { <strong>{{ instrument().condition }}</strong> }
         @if (instrument().acquiredAt) { <span>Adquirido em {{ dateRange(instrument().acquiredAt!) }}</span> }
         @if (instrument().origin) { <span>Origem: {{ instrument().origin }}</span> }
-        @if (instrument().formerOwner) { <span>Antigo dono: {{ instrument().formerOwner }}</span> }
+        <button
+          type="button"
+          class="play"
+          [disabled]="!instrument().audioUrl"
+          [attr.aria-label]="playing() ? 'Pausar ' + instrument().title : 'Tocar ' + instrument().title"
+          [attr.aria-pressed]="playing()"
+          (click)="togglePlay()"
+        >
+          @if (playing()) {
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+          }
+        </button>
       </div>
     </article>
   `,
@@ -43,12 +55,39 @@ import { dateRange } from '../../../../core/utils/date-format';
     .meta, .description, .details { margin: .35rem 0 0; color: var(--muted); }
     .description { font-style: italic; }
     .details { display: grid; gap: .35rem; text-align: right; font-size: .78rem; }
-    .details strong { justify-self: end; padding: .2rem .7rem; border-radius: 999px; background: #ece3d0; color: #6b5a2f; }
-    @media (max-width: 800px) { .card { grid-template-columns: 5rem minmax(0, 1fr); } .details { grid-column: 1 / -1; text-align: left; } .details strong { justify-self: start; } }
+    .play { justify-self: end; width: 3rem; height: 3rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold-500); color: #1c1308; cursor: pointer; box-shadow: 0 4px 12px rgba(197,154,69,.25); }
+    .play svg { width: 1.35rem; height: 1.35rem; }
+    .play:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    @media (max-width: 800px) { .card { grid-template-columns: 5rem minmax(0, 1fr); } .details { grid-column: 1 / -1; text-align: left; } .play { justify-self: start; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InstrumentCardComponent {
+export class InstrumentCardComponent implements OnDestroy {
   readonly instrument = input.required<Instrument>();
+  readonly playing = signal(false);
   protected readonly dateRange = dateRange;
+  private audio?: HTMLAudioElement;
+
+  togglePlay(): void {
+    const audioUrl = this.instrument().audioUrl;
+    if (!audioUrl) return;
+
+    if (this.audio?.src !== new URL(audioUrl, globalThis.location?.href).href) {
+      this.audio?.pause();
+      this.audio = new Audio(audioUrl);
+      this.audio.addEventListener('ended', () => this.playing.set(false));
+      this.audio.addEventListener('error', () => this.playing.set(false));
+    }
+
+    if (this.playing()) {
+      this.audio.pause();
+      this.playing.set(false);
+    } else {
+      void this.audio.play().then(() => this.playing.set(true)).catch(() => this.playing.set(false));
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.audio?.pause();
+  }
 }

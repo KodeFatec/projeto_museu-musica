@@ -8,11 +8,15 @@ import { PerfilUsuarioDto, UsuarioDto } from '../models/dto';
 export class UsersRepository {
   constructor(private readonly api: ApiClient) {}
 
-  getById(id: number): Promise<UsuarioDto> {
+  getById(id: string | number): Promise<UsuarioDto> {
     return this.api.get<UsuarioDto>(`${ENDPOINTS.usuarios}/${id}`);
   }
 
-  listProfiles(id: number): Promise<PerfilUsuarioDto[]> {
+  getMe(): Promise<UsuarioDto> {
+    return this.api.get<UsuarioDto>(`${ENDPOINTS.usuarios}/me`);
+  }
+
+  listProfiles(id: string | number): Promise<PerfilUsuarioDto[]> {
     return this.api.list<PerfilUsuarioDto>(`${ENDPOINTS.usuarios}/${id}/perfis`);
   }
 }

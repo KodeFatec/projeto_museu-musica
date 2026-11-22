@@ -1,5 +1,5 @@
 import { computed, Injectable, OnDestroy, signal } from '@angular/core';
-import { environment } from '../../../environments/environment';
+import { AuthService } from '../auth/auth.service';
 import { LyricVerse, ScoreSheet, Track } from '../models/track.model';
 import { toScore, toVerse } from '../mappers/track.mapper';
 import { SongDetailRepository } from '../repositories/song-detail.repository';
@@ -51,6 +51,7 @@ export class PlayerService implements OnDestroy {
     private readonly library: LibraryService,
     private readonly details: SongDetailRepository,
     private readonly historyRepo: HistoryRepository,
+    private readonly auth: AuthService,
   ) {}
 
   ngOnDestroy(): void {
@@ -176,10 +177,12 @@ export class PlayerService implements OnDestroy {
   /** Cria a linha de histórico na primeira reprodução da música aberta. */
   private async ensureHistory(): Promise<void> {
     const track = this.track();
-    if (!track || this.historyId !== undefined) return;
+    const userId = this.auth.userId();
+    // histórico só para quem fez login
+    if (!track || userId === null || this.historyId !== undefined) return;
     this.historyId = 0; // evita criar duas linhas se o usuário clicar rápido
     try {
-      const row = await this.historyRepo.create(environment.currentUserId, track.id, toTimeString(this.elapsed()));
+      const row = await this.historyRepo.create(userId, track.id, toTimeString(this.elapsed()));
       this.historyId = row.id_historico;
       this.library.addHistory(row);
     } catch {
@@ -189,9 +192,10 @@ export class PlayerService implements OnDestroy {
 
   private async saveProgress(): Promise<void> {
     const track = this.track();
-    if (!track || !this.historyId) return;
+    const userId = this.auth.userId();
+    if (!track || !this.historyId || userId === null) return;
     try {
-      await this.historyRepo.updateProgress(this.historyId, environment.currentUserId, track.id, toTimeString(this.elapsed()));
+      await this.historyRepo.updateProgress(this.historyId, userId, track.id, toTimeString(this.elapsed()));
     } catch {
       /* o progresso é secundário: não interrompe a reprodução */
     }

@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import axios, { AxiosInstance, CreateAxiosDefaults } from 'axios';
 import { environment } from '../../../environments/environment';
+import { TokenStore } from '../auth/token.store';
 import { ListResponse } from '../models/dto';
 import { toApiError } from './api-error';
 import { mockAdapter } from './mock/mock-adapter';
@@ -9,6 +10,7 @@ import { mockAdapter } from './mock/mock-adapter';
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
   private readonly http: AxiosInstance;
+  private readonly tokens = inject(TokenStore);
 
   constructor() {
     const config: CreateAxiosDefaults = {
@@ -20,10 +22,19 @@ export class ApiClient {
     if (environment.useMocks) config.adapter = mockAdapter;
 
     this.http = axios.create(config);
-    // Futuro login: this.http.interceptors.request.use((req) => { req.headers.Authorization = `Bearer ${token}`; return req; });
+    // envia o JWT em toda requisição quando há login
+    this.http.interceptors.request.use((request) => {
+      const token = this.tokens.token();
+      if (token) request.headers.Authorization = `Bearer ${token}`;
+      return request;
+    });
     this.http.interceptors.response.use(
       (response) => response,
-      (error) => Promise.reject(toApiError(error)),
+      (error) => {
+        // 401 com token: a sessão não vale mais (o AuthService percebe e leva ao login se for área restrita)
+        if (error?.response?.status === 401 && this.tokens.token()) this.tokens.clear();
+        return Promise.reject(toApiError(error));
+      },
     );
   }
 

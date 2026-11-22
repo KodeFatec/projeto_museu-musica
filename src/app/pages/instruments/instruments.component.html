@@ -4,7 +4,7 @@
   <p class="lead">Instrumentos originais preservados pelo museu, catalogados com tipo, fabricante, ano e estado de conservação.</p>
   <app-filter-chips label="Tipo de instrumento" [options]="chips()" [value]="instruments.type() ?? 'all'" (valueChange)="onType($event)" />
   <div class="toolbar">
-    <app-search-field placeholder="Buscar por instrumento, fabricante, ano ou antigo dono..." [value]="library.query()" (valueChange)="library.query.set($event)" />
+    <app-search-field placeholder="Buscar por instrumento, fabricante ou ano..." [value]="library.query()" (valueChange)="library.query.set($event)" />
     <label><span class="sr-only">Ordenar por</span><select [value]="instruments.sort()" (change)="onSort($event)">
       @for (sort of sorts; track sort.id) { <option [value]="sort.id">{{ sort.label }}</option> }
     </select></label>

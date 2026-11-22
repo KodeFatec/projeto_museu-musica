@@ -1,6 +1,8 @@
 :host {
   display: block;
-  min-width: 0;
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
 }
 
 .artist {
@@ -19,8 +21,10 @@
 
 .ring {
   position: relative;
-  width: min(100%, 5.6rem);
-  aspect-ratio: 1;
+  width: 104px;
+  height: 104px;
+  flex: none;
+  overflow: hidden;
   margin-bottom: 0.4rem;
   display: grid;
   place-items: center;
@@ -40,10 +44,12 @@
 }
 
 .ring img {
-  width: 100%;
-  height: 100%;
+  display: block;
+  width: 104px;
+  height: 104px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 .initials {
   font: 600 1.35rem var(--font-title);
@@ -90,8 +96,18 @@
 }
 
 @media (min-width: 1024px) {
+  :host {
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
+  }
   .ring {
-    width: min(100%, 7rem);
+    width: 112px;
+    height: 112px;
+  }
+  .ring img {
+    width: 112px;
+    height: 112px;
   }
   .initials {
     font-size: 1.8rem;

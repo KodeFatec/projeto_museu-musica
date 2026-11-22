@@ -318,3 +318,40 @@
 
 .tab { text-decoration: none; }
 .profile__text { align-items: flex-end; }
+
+.profile__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.login {
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--gold-600);
+  font: 700 0.72rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  transition: background 0.2s;
+}
+.login:hover {
+  background: var(--gold-700);
+}
+
+.logout {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 0.72rem var(--font-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+.logout:hover {
+  color: var(--ink);
+}
