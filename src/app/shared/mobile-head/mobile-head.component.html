@@ -1,0 +1,14 @@
+<header class="head">
+  <div class="head__row">
+    <a class="brand" routerLink="/inicio">
+      <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
+      <span class="brand__name">Museu da Música Itu</span>
+    </a>
+    @if (auth.isLoggedIn()) {
+      <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
+    } @else {
+      <a class="profile profile--login" routerLink="/login">Entrar</a>
+    }
+  </div>
+  <ng-content />
+</header>

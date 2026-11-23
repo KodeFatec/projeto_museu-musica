@@ -1,0 +1,9 @@
+<button type="button" class="card" [attr.data-tone]="tone() % 6" (click)="choose.emit()">
+  <span class="art" aria-hidden="true"></span>
+  <span class="title">{{ title() }}</span>
+  <span class="count">{{ count() }} {{ unit() }}</span>
+  <span class="cta">
+    Explorar
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  </span>
+</button>

@@ -19,4 +19,6 @@ export class LibrarySectionComponent {
   readonly minItem = input('13rem');
   /** Largura de cada item no carrossel (mobile). */
   readonly mobileItem = input('8rem');
+  /** Mobile: em vez de carrossel, mostra os itens em grade de 2 colunas. */
+  readonly wrap = input(false);
 }

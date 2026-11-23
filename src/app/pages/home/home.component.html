@@ -1,23 +1,12 @@
 <div class="page">
   <!-- mobile: marca, perfil e busca (no desktop isso fica no menu) -->
-  <header class="mobile-head">
-    <div class="mobile-head__row">
-      <a class="brand" routerLink="/inicio">
-        <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
-        <span class="brand__name">Museu da Música Itu</span>
-      </a>
-      @if (auth.isLoggedIn()) {
-        <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
-      } @else {
-        <a class="profile profile--login" routerLink="/login">Entrar</a>
-      }
-    </div>
+  <app-mobile-head>
     <app-search-field
       placeholder="Buscar músicas, artistas ou gêneros..."
       [value]="library.query()"
       (valueChange)="onSearch($event)"
     />
-  </header>
+  </app-mobile-head>
 
   @if (home.status() === 'error') {
     <div class="state">

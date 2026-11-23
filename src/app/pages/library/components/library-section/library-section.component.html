@@ -24,7 +24,7 @@
     }
   </header>
 
-  <div class="row" [style.--min]="minItem()" [style.--mobile]="mobileItem()">
+  <div class="row" [class.row--wrap]="wrap()" [style.--min]="minItem()" [style.--mobile]="mobileItem()">
     <ng-content />
   </div>
 </section>

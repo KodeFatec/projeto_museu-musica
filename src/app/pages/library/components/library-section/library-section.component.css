@@ -94,6 +94,13 @@
 .row > * {
   scroll-snap-align: start;
 }
+.row--wrap {
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: visible;
+  scroll-snap-type: none;
+}
 .row::-webkit-scrollbar {
   display: none;
 }

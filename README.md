@@ -20,7 +20,7 @@ Com o mock, entre com **arthur@museu.example** (ou CPF **529.982.247-25**) e a s
 também funciona (guarda só em memória: some ao recarregar).
 
 ## Rotas
-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (provisória) · /instrumentos (listagem do acervo)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -29,7 +29,7 @@ também funciona (guarda só em memória: some ao recarregar).
 - core/mappers -> DTO -> modelo
 - core/repositories -> uma chamada HTTP por método
 - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
-- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/library (Perfil) · pages/now-playing
+- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
 
 ## De onde vem cada informação da tela
 | Na tela | Tabela.coluna |
@@ -49,6 +49,12 @@ também funciona (guarda só em memória: some ao recarregar).
 | Curtidas / coração | musica_favorita |
 | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
 | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
+| Descobrir: coleções por década ("Anos 80 — N gravações") | contagem de musica por ano_gravacao (década) |
+| Descobrir: coleções por instrumento ("Cordas — N instrumentos") | contagem de instrumento.tipo_instrumento |
+| Descobrir: Acervo físico (vinis, fitas K7, CDs) | contagem de musica por formato (regra do ano) |
+| Descobrir: Acervo físico (partituras, instrumentos, artistas) | contagem de partitura, instrumento e artista |
+| Descobrir: "Linhas do tempo & décadas" | décadas das músicas (musica.ano_gravacao) e quantas gravações cada uma tem |
+| Descobrir: busca (música, artista, ISRC, gênero, instrumento) | texto enviado à tela de resultados (veja abaixo) |
 | Nome e função no menu | usuario.nome + perfil_usuario.nome (só logado; visitante vê "Visitante" e o botão Entrar) |
 | Login: e-mail ou CPF + senha | usuario.email / usuario.cpf + senha (conferida como `senha_hash` no backend) |
 | Cadastro: nome, CPF, e-mail, telefone, senha | usuario.nome, cpf, email, telefone, senha_hash; perfil padrão em usuario_perfil |
@@ -82,6 +88,20 @@ Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo 
 - O token precisa ter `sub` = `usuario.id_usuario` e `exp`. O front só decodifica (quem confere a assinatura é a API) e manda `Authorization: Bearer <token>` em toda requisição.
 - "Manter conectado" guarda o token no `localStorage`; sem isso, no `sessionStorage`. Token vencido ou resposta 401 derrubam a sessão.
 - Visitante: vê o site, mas não vê "Ouvidas recentemente", não grava histórico, e **favoritar** ou abrir **/perfil** leva ao login (que depois volta para onde estava).
+
+## Descobrir -> resultados (tela futura)
+Clicar numa coleção, num cartão do acervo físico, numa década ou pesquisar (Enter / "Localizar") abre
+`/descobrir/resultados` com os critérios nos parâmetros da URL (hoje é a tela provisória "em construção"):
+
+| Parâmetro | Valores | Exemplo |
+|---|---|---|
+| `q` | texto digitado | `?q=piano` |
+| `tipo` | `musicas`, `artistas`, `instrumentos`, `partituras` | `?tipo=instrumentos` |
+| `decada` | primeiro ano da década | `?decada=1970` |
+| `formato` | `vinil`, `k7`, `cd` | `?tipo=musicas&formato=k7` |
+| `instrumento` | `instrumento.tipo_instrumento` | `?tipo=instrumentos&instrumento=Cordas` |
+
+`core/models/explore-query.model.ts` tem `toQueryParams()` (quem manda) e `fromQueryParams()` (a tela de resultados lê com ela).
 
 ## Rotas da API
 Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.

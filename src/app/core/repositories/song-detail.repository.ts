@@ -14,6 +14,11 @@ export class SongDetailRepository {
     return rows.filter((r) => r.id_musica === songId);
   }
 
+  /** Todas as partituras do acervo (GET /partituras já existe). */
+  listAllScores(): Promise<PartituraDto[]> {
+    return this.api.list<PartituraDto>(ENDPOINTS.partituras);
+  }
+
   async listScores(songId: number): Promise<PartituraDto[]> {
     const rows = await this.api.list<PartituraDto>(ENDPOINTS.partituras, { id_musica: songId });
     return rows.filter((r) => r.id_musica === songId);

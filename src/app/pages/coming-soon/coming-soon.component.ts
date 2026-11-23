@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
-/** Tela provisória das seções que ainda não foram desenhadas (Descobrir e Instrumentos). */
+/** Tela provisória das seções que ainda não foram desenhadas (ex.: resultados da busca do Descobrir). */
 @Component({
   selector: 'app-coming-soon',
   standalone: false,

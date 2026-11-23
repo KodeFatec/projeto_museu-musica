@@ -40,6 +40,6 @@ export class AppComponent implements OnInit {
   protected onSearch(query: string): void {
     this.library.query.set(query);
     const url = this.router.url;
-    if (!['/inicio', '/perfil', '/instrumentos'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
+    if (!['/inicio', '/descobrir', '/perfil', '/instrumentos'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
   }
 }

@@ -1,0 +1,1414 @@
+diff --git a/README.md b/README.md
+index 4d348a6..fedc1a8 100644
+--- a/README.md
++++ b/README.md
+@@ -20,7 +20,7 @@ Com o mock, entre com **arthur@museu.example** (ou CPF **529.982.247-25**) e a s
+ também funciona (guarda só em memória: some ao recarregar).
+ 
+ ## Rotas
+-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (provisória) · /instrumentos (listagem do acervo)
++/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo)
+ 
+ ## Arquitetura
+ - core/models/dto.ts  -> formato exato da API (colunas do banco)
+@@ -29,7 +29,7 @@ também funciona (guarda só em memória: some ao recarregar).
+ - core/mappers -> DTO -> modelo
+ - core/repositories -> uma chamada HTTP por método
+ - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
+-- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/library (Perfil) · pages/now-playing
++- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
+ 
+ ## De onde vem cada informação da tela
+ | Na tela | Tabela.coluna |
+@@ -49,6 +49,12 @@ também funciona (guarda só em memória: some ao recarregar).
+ | Curtidas / coração | musica_favorita |
+ | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
+ | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
++| Descobrir: coleções por década ("Anos 80 — N gravações") | contagem de musica por ano_gravacao (década) |
++| Descobrir: coleções por instrumento ("Cordas — N instrumentos") | contagem de instrumento.tipo_instrumento |
++| Descobrir: Acervo físico (vinis, fitas K7, CDs) | contagem de musica por formato (regra do ano) |
++| Descobrir: Acervo físico (partituras, instrumentos, artistas) | contagem de partitura, instrumento e artista |
++| Descobrir: "Linhas do tempo & décadas" | décadas das músicas (musica.ano_gravacao) e quantas gravações cada uma tem |
++| Descobrir: busca (música, artista, ISRC, gênero, instrumento) | texto enviado à tela de resultados (veja abaixo) |
+ | Nome e função no menu | usuario.nome + perfil_usuario.nome (só logado; visitante vê "Visitante" e o botão Entrar) |
+ | Login: e-mail ou CPF + senha | usuario.email / usuario.cpf + senha (conferida como `senha_hash` no backend) |
+ | Cadastro: nome, CPF, e-mail, telefone, senha | usuario.nome, cpf, email, telefone, senha_hash; perfil padrão em usuario_perfil |
+@@ -83,6 +89,20 @@ Cores do vinil/CD/fita não existem no banco: vêm de uma paleta escolhida pelo
+ - "Manter conectado" guarda o token no `localStorage`; sem isso, no `sessionStorage`. Token vencido ou resposta 401 derrubam a sessão.
+ - Visitante: vê o site, mas não vê "Ouvidas recentemente", não grava histórico, e **favoritar** ou abrir **/perfil** leva ao login (que depois volta para onde estava).
+ 
++## Descobrir -> resultados (tela futura)
++Clicar numa coleção, num cartão do acervo físico, numa década ou pesquisar (Enter / "Localizar") abre
++`/descobrir/resultados` com os critérios nos parâmetros da URL (hoje é a tela provisória "em construção"):
++
++| Parâmetro | Valores | Exemplo |
++|---|---|---|
++| `q` | texto digitado | `?q=piano` |
++| `tipo` | `musicas`, `artistas`, `instrumentos`, `partituras` | `?tipo=instrumentos` |
++| `decada` | primeiro ano da década | `?decada=1970` |
++| `formato` | `vinil`, `k7`, `cd` | `?tipo=musicas&formato=k7` |
++| `instrumento` | `instrumento.tipo_instrumento` | `?tipo=instrumentos&instrumento=Cordas` |
++
++`core/models/explore-query.model.ts` tem `toQueryParams()` (quem manda) e `fromQueryParams()` (a tela de resultados lê com ela).
++
+ ## Rotas da API
+ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musicas-favoritas (GET, POST), /historico_musica.
+ Planejadas (o front já chama; no mock funcionam):
+diff --git a/src/app/app-routing.module.ts b/src/app/app-routing.module.ts
+index 9d82c5a..102669f 100644
+--- a/src/app/app-routing.module.ts
++++ b/src/app/app-routing.module.ts
+@@ -16,7 +16,14 @@ const routes: Routes = [
+   // Perfil só para quem fez login: visitante vai para /login e volta depois
+   { path: 'perfil', canActivate: [authGuard], loadChildren: () => import('./pages/library/library.module').then((m) => m.LibraryModule) },
+   { path: 'tocando', loadChildren: () => import('./pages/now-playing/now-playing.module').then((m) => m.NowPlayingModule) },
+-  { path: 'descobrir', data: { title: 'Descobrir' }, loadChildren: comingSoon },
++  {
++    path: 'descobrir',
++    children: [
++      // tela futura: recebe os critérios pela URL (veja core/models/explore-query.model.ts)
++      { path: 'resultados', data: { title: 'Resultados da busca' }, loadChildren: comingSoon },
++      { path: '', loadChildren: () => import('./pages/explore/explore.module').then((m) => m.ExploreModule) },
++    ],
++  },
+   { path: 'instrumentos', loadChildren: () => import('./pages/instruments/instruments.module').then((m) => m.InstrumentsModule) },
+   { path: '**', redirectTo: 'inicio' },
+ ];
+diff --git a/src/app/app.component.ts b/src/app/app.component.ts
+index 5a428fa..cf7293e 100644
+--- a/src/app/app.component.ts
++++ b/src/app/app.component.ts
+@@ -40,6 +40,6 @@ export class AppComponent implements OnInit {
+   protected onSearch(query: string): void {
+     this.library.query.set(query);
+     const url = this.router.url;
+-    if (!['/inicio', '/perfil', '/instrumentos'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
++    if (!['/inicio', '/descobrir', '/perfil', '/instrumentos'].some((path) => url.startsWith(path))) void this.router.navigate(['/inicio']);
+   }
+ }
+diff --git a/src/app/core/models/explore-query.model.ts b/src/app/core/models/explore-query.model.ts
+new file mode 100644
+index 0000000..fa5cf1f
+--- /dev/null
++++ b/src/app/core/models/explore-query.model.ts
+@@ -0,0 +1,50 @@
++import { ParamMap, Params } from '@angular/router';
++import { MediaFormat } from './media.model';
++
++/** O que se busca. Cada valor é um grupo do acervo. */
++export type SearchScope = 'musicas' | 'artistas' | 'instrumentos' | 'partituras';
++
++/**
++ * Critérios que a tela Descobrir manda para a futura tela de resultados (/descobrir/resultados),
++ * como parâmetros da URL (ex.: /descobrir/resultados?decada=1970 ou ?q=piano&tipo=instrumentos).
++ */
++export interface ExploreQuery {
++  /** Texto digitado (título, artista, ISRC, gênero, instrumento...). */
++  q?: string;
++  tipo?: SearchScope;
++  /** Primeiro ano da década: 1970 = anos 70. */
++  decada?: number;
++  formato?: MediaFormat;
++  /** instrumento.tipo_instrumento. */
++  instrumento?: string;
++}
++
++/** O formato vai na URL em português: vinil, k7 ou cd. */
++const FORMAT_TO_URL: Record<MediaFormat, string> = { vinyl: 'vinil', cassette: 'k7', cd: 'cd' };
++const URL_TO_FORMAT: Record<string, MediaFormat> = { vinil: 'vinyl', k7: 'cassette', cd: 'cd' };
++const SCOPES: SearchScope[] = ['musicas', 'artistas', 'instrumentos', 'partituras'];
++
++/** ExploreQuery -> queryParams do Router (só os campos preenchidos). */
++export function toQueryParams(query: ExploreQuery): Params {
++  const params: Params = {};
++  if (query.q?.trim()) params['q'] = query.q.trim();
++  if (query.tipo) params['tipo'] = query.tipo;
++  if (query.decada) params['decada'] = query.decada;
++  if (query.formato) params['formato'] = FORMAT_TO_URL[query.formato];
++  if (query.instrumento) params['instrumento'] = query.instrumento;
++  return params;
++}
++
++/** Lado de lá: queryParams da URL -> ExploreQuery (ignora valores inválidos). */
++export function fromQueryParams(params: ParamMap): ExploreQuery {
++  const decade = Number(params.get('decada'));
++  const scope = params.get('tipo') as SearchScope | null;
++  const format = URL_TO_FORMAT[params.get('formato') ?? ''];
++  return {
++    q: params.get('q')?.trim() || undefined,
++    tipo: scope && SCOPES.includes(scope) ? scope : undefined,
++    decada: Number.isInteger(decade) && decade > 0 ? decade : undefined,
++    formato: format,
++    instrumento: params.get('instrumento') || undefined,
++  };
++}
+diff --git a/src/app/core/repositories/song-detail.repository.ts b/src/app/core/repositories/song-detail.repository.ts
+index 893bbe9..3dce2a0 100644
+--- a/src/app/core/repositories/song-detail.repository.ts
++++ b/src/app/core/repositories/song-detail.repository.ts
+@@ -14,6 +14,11 @@ export class SongDetailRepository {
+     return rows.filter((r) => r.id_musica === songId);
+   }
+ 
++  /** Todas as partituras do acervo (GET /partituras já existe). */
++  listAllScores(): Promise<PartituraDto[]> {
++    return this.api.list<PartituraDto>(ENDPOINTS.partituras);
++  }
++
+   async listScores(songId: number): Promise<PartituraDto[]> {
+     const rows = await this.api.list<PartituraDto>(ENDPOINTS.partituras, { id_musica: songId });
+     return rows.filter((r) => r.id_musica === songId);
+diff --git a/src/app/core/services/explore.service.ts b/src/app/core/services/explore.service.ts
+new file mode 100644
+index 0000000..54daff9
+--- /dev/null
++++ b/src/app/core/services/explore.service.ts
+@@ -0,0 +1,169 @@
++import { computed, inject, Injectable, signal } from '@angular/core';
++import { ExploreQuery, SearchScope } from '../models/explore-query.model';
++import { MediaFormat } from '../models/media.model';
++import { SongDetailRepository } from '../repositories/song-detail.repository';
++import { formatByYear } from '../utils/media-format';
++import { CatalogService } from './catalog.service';
++import { HomeService } from './home.service';
++import { InstrumentsService } from './instruments.service';
++import { LibraryService } from './library.service';
++
++/** Tipo de item escolhido nos filtros da busca ('all' = tudo). */
++export type ExploreScope = 'all' | SearchScope;
++
++/** Cartão de coleção: uma década de gravações ou um tipo de instrumento. */
++export interface Collection {
++  id: string;
++  kind: 'decade' | 'instrument';
++  title: string;
++  count: number;
++  unit: string;
++  decade?: number;
++  type?: string;
++}
++
++/** Cartão do "Acervo físico": um formato de mídia ou um tipo de item do acervo. */
++export interface PhysicalCollection {
++  id: string;
++  kind: MediaFormat | 'scores' | 'instruments' | 'artists';
++  title: string;
++  count: number;
++  unit: string;
++}
++
++const FEATURED = 6;
++
++/** 1990 -> "Anos 90"; 2010 -> "Anos 2010". */
++export const decadeLabel = (decade: number) => (decade >= 1910 && decade < 2000 ? `Anos ${decade - 1900}` : `Anos ${decade}`);
++
++const decadeOf = (year?: number | null) => (year ? Math.floor(year / 10) * 10 : null);
++
++/**
++ * Estado da tela Descobrir: números do acervo para as coleções (décadas, instrumentos, formatos) e o
++ * tipo de item escolhido na busca. Os resultados ficam para a tela futura (/descobrir/resultados).
++ */
++@Injectable({ providedIn: 'root' })
++export class ExploreService {
++  private readonly catalog = inject(CatalogService);
++  private readonly library = inject(LibraryService);
++  private readonly home = inject(HomeService);
++  private readonly instruments = inject(InstrumentsService);
++  private readonly songDetails = inject(SongDetailRepository);
++
++  readonly scope = signal<ExploreScope>('all');
++  private readonly scoresTotal = signal(0);
++  private loading?: Promise<void>;
++
++  // ---------- números do acervo ----------
++  readonly songsTotal = computed(() => this.catalog.tracks().length);
++  readonly artistsTotal = computed(() => this.home.artistsAll().length);
++  readonly instrumentsTotal = computed(() => this.instruments.instruments().length);
++
++  /** Décadas com gravações, da mais antiga para a mais nova. */
++  readonly decades = computed(() => {
++    const counts = new Map<number, number>();
++    for (const t of this.catalog.tracks()) {
++      const d = decadeOf(t.year);
++      if (d !== null) counts.set(d, (counts.get(d) ?? 0) + 1);
++    }
++    return [...counts.entries()].map(([decade, count]) => ({ decade, count })).sort((a, b) => a.decade - b.decade);
++  });
++
++  /** Tipos de instrumento (instrumento.tipo_instrumento), os mais comuns primeiro. */
++  readonly instrumentTypes = computed(() =>
++    [...this.instruments.types()].sort((a, b) => b.count - a.count || a.type.localeCompare(b.type, 'pt-BR')),
++  );
++
++  readonly formatCounts = computed(() => {
++    const counts: Record<MediaFormat, number> = { vinyl: 0, cassette: 0, cd: 0 };
++    for (const t of this.catalog.tracks()) counts[formatByYear(t.year)]++;
++    return counts;
++  });
++
++  /** Coleções em destaque: as décadas com mais gravações e os tipos de instrumento mais comuns. */
++  readonly featured = computed<Collection[]>(() => {
++    const byCount = [...this.decades()].sort((a, b) => b.count - a.count || b.decade - a.decade);
++    const types = this.instrumentTypes().slice(0, 3);
++    const decadeSlots = Math.max(3, FEATURED - types.length);
++    return [
++      ...byCount
++        .slice(0, decadeSlots)
++        .sort((a, b) => b.decade - a.decade)
++        .map((d): Collection => ({ id: `d${d.decade}`, kind: 'decade', title: decadeLabel(d.decade), count: d.count, unit: d.count === 1 ? 'gravação' : 'gravações', decade: d.decade })),
++      ...types.map((t): Collection => ({ id: `i${t.type}`, kind: 'instrument', title: t.type, count: t.count, unit: t.count === 1 ? 'instrumento' : 'instrumentos', type: t.type })),
++    ].slice(0, FEATURED);
++  });
++
++  readonly physical = computed<PhysicalCollection[]>(() => {
++    const f = this.formatCounts();
++    const items: PhysicalCollection[] = [
++      { id: 'vinyl', kind: 'vinyl', title: 'Discos de Vinil', count: f.vinyl, unit: 'gravações' },
++      { id: 'cassette', kind: 'cassette', title: 'Fitas K7', count: f.cassette, unit: 'gravações' },
++      { id: 'cd', kind: 'cd', title: 'CDs', count: f.cd, unit: 'gravações' },
++      { id: 'scores', kind: 'scores', title: 'Partituras Originais', count: this.scoresTotal(), unit: 'partituras' },
++      { id: 'instruments', kind: 'instruments', title: 'Instrumentos Históricos', count: this.instrumentsTotal(), unit: 'instrumentos' },
++      { id: 'artists', kind: 'artists', title: 'Compositores & Mestres', count: this.artistsTotal(), unit: 'artistas' },
++    ];
++    return items.filter((i) => i.count > 0);
++  });
++
++  /** Chips "Tipo de item" da busca, com as contagens. */
++  readonly scopeChips = computed(() => [
++    { id: 'all', label: 'Todos' },
++    { id: 'musicas', label: 'Músicas', count: this.songsTotal() },
++    { id: 'artistas', label: 'Artistas', count: this.artistsTotal() },
++    { id: 'instrumentos', label: 'Instrumentos', count: this.instrumentsTotal() },
++    { id: 'partituras', label: 'Partituras', count: this.scoresTotal() },
++  ]);
++
++  load(): Promise<void> {
++    return (this.loading ??= this.fetch());
++  }
++
++  setScope(id: string): void {
++    this.scope.set(id as ExploreScope);
++  }
++
++  // ---------- critérios enviados à tela de resultados ----------
++  /** Busca digitada (+ tipo escolhido). Sem texto e sem tipo, não há o que buscar (null). */
++  forSearch(): ExploreQuery | null {
++    const q = this.library.query().trim();
++    const scope = this.scope();
++    if (!q && scope === 'all') return null;
++    return { q: q || undefined, tipo: scope === 'all' ? undefined : scope };
++  }
++
++  forCollection(collection: Collection): ExploreQuery {
++    return collection.kind === 'decade'
++      ? { decada: collection.decade }
++      : { tipo: 'instrumentos', instrumento: collection.type };
++  }
++
++  forPhysical(item: PhysicalCollection): ExploreQuery {
++    switch (item.kind) {
++      case 'vinyl':
++      case 'cassette':
++      case 'cd':
++        return { tipo: 'musicas', formato: item.kind };
++      case 'scores':
++        return { tipo: 'partituras' };
++      case 'instruments':
++        return { tipo: 'instrumentos' };
++      case 'artists':
++        return { tipo: 'artistas' };
++    }
++  }
++
++  forDecade(decade: number): ExploreQuery {
++    return { decada: decade };
++  }
++
++  private async fetch(): Promise<void> {
++    await Promise.all([
++      this.library.load(),
++      this.instruments.load(),
++      // partituras só entram na contagem: se a rota falhar, o cartão simplesmente não aparece
++      this.songDetails.listAllScores().then((rows) => this.scoresTotal.set(rows.length), () => undefined),
++    ]);
++  }
++}
+diff --git a/src/app/pages/coming-soon/coming-soon.component.ts b/src/app/pages/coming-soon/coming-soon.component.ts
+index ebc59f4..dbec7e4 100644
+--- a/src/app/pages/coming-soon/coming-soon.component.ts
++++ b/src/app/pages/coming-soon/coming-soon.component.ts
+@@ -1,7 +1,7 @@
+ import { ChangeDetectionStrategy, Component } from '@angular/core';
+ import { ActivatedRoute } from '@angular/router';
+ 
+-/** Tela provisória das seções que ainda não foram desenhadas (Descobrir e Instrumentos). */
++/** Tela provisória das seções que ainda não foram desenhadas (ex.: resultados da busca do Descobrir). */
+ @Component({
+   selector: 'app-coming-soon',
+   standalone: false,
+diff --git a/src/app/pages/explore/components/collection-card/collection-card.component.css b/src/app/pages/explore/components/collection-card/collection-card.component.css
+new file mode 100644
+index 0000000..674d5ea
+--- /dev/null
++++ b/src/app/pages/explore/components/collection-card/collection-card.component.css
+@@ -0,0 +1,98 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.card {
++  --tone: #5b1425;
++  position: relative;
++  width: 100%;
++  min-height: 9.5rem;
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  padding: 1.1rem;
++  overflow: hidden;
++  border: 0;
++  border-radius: 1rem;
++  background: linear-gradient(135deg, var(--tone), color-mix(in srgb, var(--tone) 70%, #000));
++  text-align: left;
++  color: #fff;
++  cursor: pointer;
++  box-shadow: 0 8px 18px rgba(30, 25, 21, 0.18);
++  transition: transform 0.25s, box-shadow 0.25s;
++}
++.card:hover,
++.card:focus-visible {
++  transform: translateY(-3px);
++  box-shadow: 0 14px 26px rgba(30, 25, 21, 0.26);
++}
++.card[data-tone='0'] { --tone: #5b1425; }
++.card[data-tone='1'] { --tone: #1f5a44; }
++.card[data-tone='2'] { --tone: #a9650f; }
++.card[data-tone='3'] { --tone: #1b3466; }
++.card[data-tone='4'] { --tone: #3e1f4f; }
++.card[data-tone='5'] { --tone: #8e3f1e; }
++
++/* arte decorativa: sulcos de vinil saindo pelo canto */
++.art {
++  position: absolute;
++  right: -2.5rem;
++  bottom: -2.5rem;
++  width: 9rem;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  background:
++    radial-gradient(circle, rgba(255, 255, 255, 0.18) 0 8%, transparent 9%),
++    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.1) 0 2px, transparent 2px 7px);
++  transition: transform 0.6s;
++}
++.card:hover .art {
++  transform: rotate(40deg) scale(1.06);
++}
++
++.title {
++  position: relative;
++  font: 700 1.5rem/1.1 var(--font-title);
++  letter-spacing: 0.02em;
++  text-transform: uppercase;
++}
++.count {
++  position: relative;
++  margin-top: 0.3rem;
++  font: 400 0.8rem var(--font-text);
++  opacity: 0.85;
++}
++.cta {
++  position: relative;
++  display: inline-flex;
++  align-items: center;
++  gap: 0.4rem;
++  margin-top: auto;
++  padding-top: 1rem;
++  font: 700 0.7rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++}
++.cta svg {
++  width: 0.95rem;
++}
++
++@media (min-width: 1024px) {
++  .card {
++    min-height: 14rem;
++    padding: 1.7rem;
++    border-radius: 1.1rem;
++  }
++  .art {
++    right: -3rem;
++    bottom: -3rem;
++    width: 15rem;
++  }
++  .title {
++    font-size: 2.6rem;
++  }
++  .count {
++    font-size: 0.95rem;
++  }
++}
+diff --git a/src/app/pages/explore/components/collection-card/collection-card.component.html b/src/app/pages/explore/components/collection-card/collection-card.component.html
+new file mode 100644
+index 0000000..801c4b3
+--- /dev/null
++++ b/src/app/pages/explore/components/collection-card/collection-card.component.html
+@@ -0,0 +1,9 @@
++<button type="button" class="card" [attr.data-tone]="tone() % 6" (click)="choose.emit()">
++  <span class="art" aria-hidden="true"></span>
++  <span class="title">{{ title() }}</span>
++  <span class="count">{{ count() }} {{ unit() }}</span>
++  <span class="cta">
++    Explorar
++    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4.5 12h15m0 0-6-6m6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
++  </span>
++</button>
+diff --git a/src/app/pages/explore/components/collection-card/collection-card.component.ts b/src/app/pages/explore/components/collection-card/collection-card.component.ts
+new file mode 100644
+index 0000000..2d71121
+--- /dev/null
++++ b/src/app/pages/explore/components/collection-card/collection-card.component.ts
+@@ -0,0 +1,17 @@
++import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++
++/** Cartão de coleção (década ou tipo de instrumento). A cor muda pelo `tone` (0 a 5). */
++@Component({
++  selector: 'app-collection-card',
++  standalone: false,
++  templateUrl: './collection-card.component.html',
++  styleUrl: './collection-card.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class CollectionCardComponent {
++  readonly title = input.required<string>();
++  readonly count = input.required<number>();
++  readonly unit = input('');
++  readonly tone = input(0);
++  readonly choose = output<void>();
++}
+diff --git a/src/app/pages/explore/components/physical-card/physical-card.component.css b/src/app/pages/explore/components/physical-card/physical-card.component.css
+new file mode 100644
+index 0000000..b366454
+--- /dev/null
++++ b/src/app/pages/explore/components/physical-card/physical-card.component.css
+@@ -0,0 +1,78 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.card {
++  width: 100%;
++  display: flex;
++  flex-direction: column;
++  padding: 0;
++  overflow: hidden;
++  border: 1px solid rgba(197, 154, 69, 0.25);
++  border-radius: 0.9rem;
++  background: #fffdf8;
++  text-align: left;
++  color: var(--ink);
++  cursor: pointer;
++  box-shadow: 0 4px 12px rgba(60, 45, 20, 0.08);
++  transition: transform 0.25s, box-shadow 0.25s;
++}
++.card:hover,
++.card:focus-visible {
++  transform: translateY(-3px);
++  box-shadow: 0 12px 24px rgba(60, 45, 20, 0.16);
++}
++
++.art {
++  display: grid;
++  place-items: center;
++  height: 7rem;
++  overflow: hidden;
++  background: linear-gradient(145deg, #2b241e, #1e1915);
++}
++.piece {
++  width: 5.2rem;
++  transition: transform 0.6s;
++}
++.card:hover .piece--round {
++  transform: rotate(45deg);
++}
++.icon {
++  width: 3rem;
++  color: var(--gold-300);
++}
++
++.body {
++  display: flex;
++  flex-direction: column;
++  gap: 0.2rem;
++  padding: 0.8rem 0.9rem 0.95rem;
++}
++.title {
++  font: 700 1.05rem/1.2 var(--font-title);
++}
++.count {
++  font: 500 0.72rem var(--font-text);
++  letter-spacing: 0.06em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++
++@media (min-width: 1024px) {
++  .art {
++    height: 10rem;
++  }
++  .piece {
++    width: 7.5rem;
++  }
++  .piece:not(.piece--round) {
++    width: 10rem;
++  }
++  .icon {
++    width: 4rem;
++  }
++  .title {
++    font-size: 1.25rem;
++  }
++}
+diff --git a/src/app/pages/explore/components/physical-card/physical-card.component.html b/src/app/pages/explore/components/physical-card/physical-card.component.html
+new file mode 100644
+index 0000000..0f770b3
+--- /dev/null
++++ b/src/app/pages/explore/components/physical-card/physical-card.component.html
+@@ -0,0 +1,22 @@
++<button type="button" class="card" (click)="choose.emit()">
++  <span class="art" aria-hidden="true">
++    @switch (item().kind) {
++      @case ('vinyl') { <app-vinyl-disc class="piece piece--round" [label]="label" /> }
++      @case ('cassette') { <app-cassette-tape class="piece" [spec]="tape" /> }
++      @case ('cd') { <app-cd-disc class="piece piece--round" [label]="label" /> }
++      @default {
++        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
++          @switch (item().kind) {
++            @case ('scores') { <path d="M9 18V5l11-2v13M9 18a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 9 18Zm11-2a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 20 16Z" /> }
++            @case ('instruments') { <path d="M4 17c0-3 2-5 5-5l7-7 3 3-7 7c0 3-2 5-5 5s-3-1-3-3Zm12-10 1.5-1.5" /> }
++            @default { <path d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.1a7.5 7.5 0 0 1 15 0" /> }
++          }
++        </svg>
++      }
++    }
++  </span>
++  <span class="body">
++    <span class="title">{{ item().title }}</span>
++    <span class="count">{{ item().count }} {{ item().unit }}</span>
++  </span>
++</button>
+diff --git a/src/app/pages/explore/components/physical-card/physical-card.component.ts b/src/app/pages/explore/components/physical-card/physical-card.component.ts
+new file mode 100644
+index 0000000..e5cfa9b
+--- /dev/null
++++ b/src/app/pages/explore/components/physical-card/physical-card.component.ts
+@@ -0,0 +1,22 @@
++import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++import { CassetteSpec, VinylLabel } from '../../../../core/models/media.model';
++import { PhysicalCollection } from '../../../../core/services/explore.service';
++
++/** Cartão do "Acervo físico do museu": mostra o disco, a fita ou o CD do formato (ou um ícone). */
++@Component({
++  selector: 'app-physical-card',
++  standalone: false,
++  templateUrl: './physical-card.component.html',
++  styleUrl: './physical-card.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class PhysicalCardComponent {
++  readonly item = input.required<PhysicalCollection>();
++  readonly choose = output<void>();
++
++  // arte genérica: o formato é o que importa aqui, não uma música específica
++  protected readonly label: VinylLabel = { bg: '#272118', fg: '#F0E6D2', ring: '#D8A748', lines: [] };
++  protected readonly tape: CassetteSpec = {
++    heading: 'ACERVO', side: '', counter: 'K7', specs: ['', '', ''], badge: '', shell: '#2b302c',
++  };
++}
+diff --git a/src/app/pages/explore/explore.component.css b/src/app/pages/explore/explore.component.css
+new file mode 100644
+index 0000000..e70c4d6
+--- /dev/null
++++ b/src/app/pages/explore/explore.component.css
+@@ -0,0 +1,185 @@
++:host {
++  display: block;
++  flex: none;
++  max-width: 100%;
++  overflow-x: clip;
++}
++
++.page {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 1.5rem;
++  padding: 0.5rem 1.5rem 11rem;
++}
++.page > *,
++.sections > * {
++  min-width: 0;
++}
++
++.sections {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 2rem;
++}
++/* no mobile os carrosséis e a faixa do museu vão até a borda direita da tela */
++app-library-section,
++app-museum-banner {
++  margin-right: -1.5rem;
++}
++
++/* ---------- topo ---------- */
++.strip {
++  display: none;
++}
++.intro h1 {
++  margin: 0;
++  font: 700 1.9rem/1.1 var(--font-title);
++  text-transform: uppercase;
++  letter-spacing: 0.02em;
++  color: var(--ink);
++}
++.lead {
++  margin: 0.5rem 0 0;
++  font: 400 0.95rem/1.5 var(--font-text);
++  color: var(--muted);
++}
++
++/* ---------- busca ---------- */
++.search-card {
++  display: grid;
++  gap: 0.9rem;
++  padding: 1rem;
++  border: 1px solid rgba(197, 154, 69, 0.25);
++  border-radius: 1.1rem;
++  background: #fffdf8;
++  box-shadow: 0 8px 22px rgba(60, 45, 20, 0.08);
++}
++.search-row {
++  display: flex;
++  align-items: center;
++  gap: 0.7rem;
++}
++.search-row__field {
++  flex: 1;
++  min-width: 0;
++}
++.kbd {
++  display: none;
++  padding: 0.2rem 0.55rem;
++  border-radius: 4px;
++  border: 1px solid #d5cbb9;
++  background: #efe9dc;
++  font: 500 0.7rem var(--font-text);
++  color: #7e7465;
++}
++.locate {
++  flex: none;
++  padding: 0.7rem 1.2rem;
++  border: 0;
++  border-radius: 999px;
++  background: var(--gold-600);
++  font: 700 0.75rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #fff;
++  cursor: pointer;
++  transition: background 0.2s;
++}
++.locate:hover {
++  background: var(--gold-700);
++}
++
++.filters {
++  display: flex;
++  align-items: center;
++  gap: 0.6rem;
++  min-width: 0;
++}
++.filters__label {
++  flex: none;
++  font: 500 0.7rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--muted);
++}
++.filters app-filter-chips {
++  flex: 1;
++}
++
++.state {
++  margin: 0;
++  font: italic 400 1.05rem var(--font-text);
++  color: var(--muted);
++}
++.state button {
++  margin-top: 0.5rem;
++  padding: 0.4rem 1rem;
++  border: 1px solid var(--gold-500);
++  border-radius: 999px;
++  background: none;
++  font: 500 0.75rem var(--font-text);
++  color: var(--gold-700);
++  cursor: pointer;
++}
++
++/* ---------- desktop ---------- */
++@media (min-width: 1024px) {
++  .page {
++    max-width: 80rem;
++    margin: 0 auto;
++    padding: 0 1.5rem 8rem;
++    gap: 2rem;
++  }
++  app-library-section,
++  app-museum-banner {
++    margin-right: 0;
++  }
++  .sections {
++    gap: 3.5rem;
++  }
++
++  .strip {
++    display: flex;
++    align-items: center;
++    justify-content: space-between;
++    gap: 1rem;
++    margin: 0 -1.5rem;
++    padding: 0.7rem 1.5rem;
++    background: #f1ebde;
++    font: 500 0.72rem var(--font-text);
++    letter-spacing: 0.08em;
++    text-transform: uppercase;
++    color: #6b6154;
++  }
++  .strip i {
++    margin: 0 0.4rem;
++    font-style: normal;
++    color: #b3a999;
++  }
++  .strip__count {
++    color: var(--gold-700);
++  }
++
++  .intro {
++    padding-top: 1.5rem;
++  }
++  .intro h1 {
++    font-size: 3.4rem;
++    text-transform: none;
++    letter-spacing: -0.01em;
++  }
++  .lead {
++    max-width: 48rem;
++    font-size: 1.1rem;
++  }
++
++  .search-card {
++    padding: 1.5rem;
++  }
++  .kbd {
++    display: inline-block;
++  }
++  .locate {
++    padding: 0.85rem 1.8rem;
++  }
++}
+diff --git a/src/app/pages/explore/explore.component.html b/src/app/pages/explore/explore.component.html
+new file mode 100644
+index 0000000..4e7dbfb
+--- /dev/null
++++ b/src/app/pages/explore/explore.component.html
+@@ -0,0 +1,70 @@
++<div class="page">
++  <!-- mobile: marca e perfil (no desktop isso fica no menu) -->
++  <app-mobile-head />
++
++  <p class="strip">
++    <span>Museu da Música Itu <i>/</i> Descobrir</span>
++    <span class="strip__count">{{ explore.songsTotal() }} músicas • {{ explore.artistsTotal() }} artistas catalogados</span>
++  </p>
++
++  <header class="intro">
++    <h1>Busca &amp; Explorar o Acervo</h1>
++    <p class="lead">Descubra gravações originais, artistas, partituras raras e instrumentos históricos do museu.</p>
++  </header>
++
++  <section class="search-card" aria-label="Buscar no acervo">
++    <div class="search-row">
++      <app-search-field
++        class="search-row__field"
++        placeholder="Pesquisar por música, artista, ISRC, gênero ou instrumento..."
++        [value]="library.query()"
++        (valueChange)="onSearchText($event)"
++        (submitted)="submitSearch()"
++      />
++      <kbd class="kbd">Ctrl + K</kbd>
++      <button type="button" class="locate" (click)="submitSearch()">Localizar</button>
++    </div>
++
++    <div class="filters">
++      <span class="filters__label">Filtros:</span>
++      <app-filter-chips label="Tipo de item" [options]="explore.scopeChips()" [value]="explore.scope()" (valueChange)="explore.setScope($event)" />
++    </div>
++  </section>
++
++  @if (library.status() === 'error') {
++    <div class="state">
++      <p>{{ library.error() }}</p>
++      <button type="button" (click)="home.reload()">Tentar novamente</button>
++    </div>
++  } @else if (library.status() === 'loading') {
++    <p class="state">Carregando o acervo…</p>
++  }
++
++  <div class="sections">
++    @if (explore.featured().length) {
++      <app-library-section title="Explorar Coleções" subtitle="Décadas e instrumentos do acervo" [wrap]="true" minItem="18rem" mobileItem="100%">
++        @for (collection of explore.featured(); track collection.id; let i = $index) {
++          <app-collection-card [title]="collection.title" [count]="collection.count" [unit]="collection.unit" [tone]="i" (choose)="pickCollection(collection)" />
++        }
++      </app-library-section>
++    }
++
++    @if (explore.physical().length) {
++      <app-library-section title="Acervo Físico do Museu" subtitle="Formatos e itens catalogados" [wrap]="true" minItem="13rem" mobileItem="100%">
++        @for (item of explore.physical(); track item.id) {
++          <app-physical-card [item]="item" (choose)="pickPhysical(item)" />
++        }
++      </app-library-section>
++    }
++
++    @if (explore.decades().length) {
++      <app-library-section title="Linhas do Tempo &amp; Décadas" subtitle="Gravações por década" minItem="100%" mobileItem="100%">
++        <app-filter-chips label="Década" [options]="decadeChips()" value="" (valueChange)="pickDecade($event)" />
++      </app-library-section>
++    }
++
++    @if (home.museum(); as museum) {
++      <app-museum-banner [museum]="museum" [rooms]="home.rooms()" [capacity]="home.totalCapacity()" />
++    }
++  </div>
++</div>
+diff --git a/src/app/pages/explore/explore.component.ts b/src/app/pages/explore/explore.component.ts
+new file mode 100644
+index 0000000..9c690c1
+--- /dev/null
++++ b/src/app/pages/explore/explore.component.ts
+@@ -0,0 +1,71 @@
++import { ChangeDetectionStrategy, Component, HostListener, inject, OnInit, viewChild } from '@angular/core';
++import { Router } from '@angular/router';
++import { ExploreQuery, toQueryParams } from '../../core/models/explore-query.model';
++import { Collection, decadeLabel, ExploreService, PhysicalCollection } from '../../core/services/explore.service';
++import { HomeService } from '../../core/services/home.service';
++import { LibraryService } from '../../core/services/library.service';
++import { SearchFieldComponent } from '../../shared/search-field/search-field.component';
++
++/**
++ * Tela "Descobrir": mostra as coleções do acervo. Clicar numa coleção ou pesquisar leva para a tela de
++ * resultados (ainda por criar), passando os critérios pela URL: /descobrir/resultados?decada=1970.
++ */
++@Component({
++  selector: 'app-explore',
++  standalone: false,
++  templateUrl: './explore.component.html',
++  styleUrl: './explore.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class ExploreComponent implements OnInit {
++  protected readonly explore = inject(ExploreService);
++  protected readonly library = inject(LibraryService);
++  protected readonly home = inject(HomeService);
++  private readonly router = inject(Router);
++
++  private readonly search = viewChild(SearchFieldComponent);
++
++  ngOnInit(): void {
++    void this.explore.load();
++    void this.home.load();
++  }
++
++  protected readonly decadeChips = () =>
++    this.explore.decades().map((d) => ({ id: String(d.decade), label: decadeLabel(d.decade), count: d.count }));
++
++  /** Ctrl+K (ou Cmd+K) leva o cursor para a busca. */
++  @HostListener('document:keydown', ['$event'])
++  protected onKeydown(event: KeyboardEvent): void {
++    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
++      event.preventDefault();
++      this.search()?.focus();
++    }
++  }
++
++  protected onSearchText(text: string): void {
++    this.library.query.set(text);
++  }
++
++  /** "Localizar" ou Enter: vai para os resultados; sem texto nem filtro, só devolve o cursor ao campo. */
++  protected submitSearch(): void {
++    const query = this.explore.forSearch();
++    if (query) this.openResults(query);
++    else this.search()?.focus();
++  }
++
++  protected pickCollection(collection: Collection): void {
++    this.openResults(this.explore.forCollection(collection));
++  }
++
++  protected pickPhysical(item: PhysicalCollection): void {
++    this.openResults(this.explore.forPhysical(item));
++  }
++
++  protected pickDecade(id: string): void {
++    this.openResults(this.explore.forDecade(Number(id)));
++  }
++
++  private openResults(query: ExploreQuery): void {
++    void this.router.navigate(['/descobrir/resultados'], { queryParams: toQueryParams(query) });
++  }
++}
+diff --git a/src/app/pages/explore/explore.module.ts b/src/app/pages/explore/explore.module.ts
+new file mode 100644
+index 0000000..267363b
+--- /dev/null
++++ b/src/app/pages/explore/explore.module.ts
+@@ -0,0 +1,22 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { RouterModule } from '@angular/router';
++import { SharedModule } from '../../shared/shared.module';
++import { TrackCardsModule } from '../library/components/track-cards.module';
++import { MuseumBannerModule } from '../home/components/museum-banner/museum-banner.module';
++import { CollectionCardComponent } from './components/collection-card/collection-card.component';
++import { PhysicalCardComponent } from './components/physical-card/physical-card.component';
++import { ExploreComponent } from './explore.component';
++
++/** Tela Descobrir (coleções e busca do acervo), carregada sob demanda. */
++@NgModule({
++  declarations: [ExploreComponent, CollectionCardComponent, PhysicalCardComponent],
++  imports: [
++    CommonModule,
++    SharedModule,
++    TrackCardsModule, // só para a seção em carrossel/grade (app-library-section)
++    MuseumBannerModule,
++    RouterModule.forChild([{ path: '', component: ExploreComponent }]),
++  ],
++})
++export class ExploreModule {}
+diff --git a/src/app/pages/home/components/museum-banner/museum-banner.module.ts b/src/app/pages/home/components/museum-banner/museum-banner.module.ts
+new file mode 100644
+index 0000000..0447fa0
+--- /dev/null
++++ b/src/app/pages/home/components/museum-banner/museum-banner.module.ts
+@@ -0,0 +1,11 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { MuseumBannerComponent } from './museum-banner.component';
++
++/** Faixa "Visite o museu": usada nas telas Início e Descobrir. */
++@NgModule({
++  declarations: [MuseumBannerComponent],
++  imports: [CommonModule],
++  exports: [MuseumBannerComponent],
++})
++export class MuseumBannerModule {}
+diff --git a/src/app/pages/home/home.component.css b/src/app/pages/home/home.component.css
+index 016d387..2b2f789 100644
+--- a/src/app/pages/home/home.component.css
++++ b/src/app/pages/home/home.component.css
+@@ -44,52 +44,6 @@
+   cursor: pointer;
+ }
+ 
+-/* ---------- mobile: cabeçalho ---------- */
+-.mobile-head {
+-  display: grid;
+-  gap: 0.9rem;
+-  padding: 0.75rem 1.5rem 1rem 0;
+-}
+-.mobile-head__row {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  gap: 0.75rem;
+-}
+-.brand {
+-  display: flex;
+-  align-items: center;
+-  gap: 0.7rem;
+-  min-width: 0;
+-  text-decoration: none;
+-  color: var(--ink);
+-}
+-.brand__logo {
+-  width: 2.4rem;
+-  height: 2.4rem;
+-  flex: none;
+-  border-radius: 50%;
+-  object-fit: cover;
+-}
+-.brand__name {
+-  font: 700 1.15rem/1.1 var(--font-title);
+-  letter-spacing: 0.04em;
+-  text-transform: uppercase;
+-}
+-.profile {
+-  width: 2.6rem;
+-  height: 2.6rem;
+-  flex: none;
+-  display: grid;
+-  place-items: center;
+-  border-radius: 50%;
+-  background: rgba(236, 228, 220, 0.7);
+-  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.45);
+-  font: 700 0.8rem var(--font-text);
+-  text-decoration: none;
+-  color: var(--gold-700);
+-}
+-
+ /* ---------- eventos ---------- */
+ .events__stage {
+   display: grid;
+@@ -187,9 +141,6 @@
+   .sections {
+     gap: 3.5rem;
+   }
+-  .mobile-head {
+-    display: none;
+-  }
+ 
+   .events__stage {
+     grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+@@ -247,15 +198,3 @@
+   }
+ }
+ 
+-/* visitante no mobile: o atalho do perfil vira o botão "Entrar" */
+-.profile--login {
+-  width: auto;
+-  padding: 0 1.1rem;
+-  border-radius: 999px;
+-  background: var(--gold-600);
+-  box-shadow: none;
+-  font-size: 0.72rem;
+-  letter-spacing: 0.08em;
+-  text-transform: uppercase;
+-  color: #fff;
+-}
+diff --git a/src/app/pages/home/home.component.html b/src/app/pages/home/home.component.html
+index 201d746..60757b8 100644
+--- a/src/app/pages/home/home.component.html
++++ b/src/app/pages/home/home.component.html
+@@ -1,23 +1,12 @@
+ <div class="page">
+   <!-- mobile: marca, perfil e busca (no desktop isso fica no menu) -->
+-  <header class="mobile-head">
+-    <div class="mobile-head__row">
+-      <a class="brand" routerLink="/inicio">
+-        <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
+-        <span class="brand__name">Museu da Música Itu</span>
+-      </a>
+-      @if (auth.isLoggedIn()) {
+-        <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
+-      } @else {
+-        <a class="profile profile--login" routerLink="/login">Entrar</a>
+-      }
+-    </div>
++  <app-mobile-head>
+     <app-search-field
+       placeholder="Buscar músicas, artistas ou gêneros..."
+       [value]="library.query()"
+       (valueChange)="onSearch($event)"
+     />
+-  </header>
++  </app-mobile-head>
+ 
+   @if (home.status() === 'error') {
+     <div class="state">
+diff --git a/src/app/pages/home/home.component.ts b/src/app/pages/home/home.component.ts
+index 89205a5..e800321 100644
+--- a/src/app/pages/home/home.component.ts
++++ b/src/app/pages/home/home.component.ts
+@@ -6,7 +6,6 @@ import { AuthService } from '../../core/auth/auth.service';
+ import { HomeService } from '../../core/services/home.service';
+ import { FormatFilter, LibraryService } from '../../core/services/library.service';
+ import { PlayerService } from '../../core/services/player.service';
+-import { UserService } from '../../core/services/user.service';
+ 
+ /**
+  * Tela "Início": eventos (atividade), artistas, seleção do acervo (musica) e dados do museu.
+@@ -22,7 +21,6 @@ import { UserService } from '../../core/services/user.service';
+ export class HomeComponent implements OnInit {
+   protected readonly home = inject(HomeService);
+   protected readonly library = inject(LibraryService);
+-  protected readonly user = inject(UserService);
+   protected readonly auth = inject(AuthService);
+   private readonly player = inject(PlayerService);
+   private readonly router = inject(Router);
+@@ -40,9 +38,6 @@ export class HomeComponent implements OnInit {
+   protected readonly activeIndex = computed(() =>
+     Math.min(this.requestedIndex(), Math.max(this.home.events().length - 1, 0)),
+   );
+-  protected readonly initials = computed(() =>
+-    this.user.name().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''),
+-  );
+ 
+   ngOnInit(): void {
+     void this.home.load();
+diff --git a/src/app/pages/home/home.module.ts b/src/app/pages/home/home.module.ts
+index 2d65b11..ef245f9 100644
+--- a/src/app/pages/home/home.module.ts
++++ b/src/app/pages/home/home.module.ts
+@@ -6,18 +6,19 @@ import { TrackCardsModule } from '../library/components/track-cards.module';
+ import { ArtistAvatarComponent } from './components/artist-avatar/artist-avatar.component';
+ import { EventCardComponent } from './components/event-card/event-card.component';
+ import { EventListComponent } from './components/event-list/event-list.component';
+-import { MuseumBannerComponent } from './components/museum-banner/museum-banner.component';
++import { MuseumBannerModule } from './components/museum-banner/museum-banner.module';
+ import { HomeComponent } from './home.component';
+ 
+ /** Tela Início (eventos, artistas, seleção do acervo e museu), carregada sob demanda. */
+ @NgModule({
+   declarations: [
+-    HomeComponent, EventCardComponent, EventListComponent, ArtistAvatarComponent, MuseumBannerComponent,
++    HomeComponent, EventCardComponent, EventListComponent, ArtistAvatarComponent,
+   ],
+   imports: [
+     CommonModule,
+     SharedModule,
+     TrackCardsModule,
++    MuseumBannerModule,
+     RouterModule.forChild([{ path: '', component: HomeComponent }]),
+   ],
+ })
+diff --git a/src/app/pages/library/components/library-section/library-section.component.css b/src/app/pages/library/components/library-section/library-section.component.css
+index be59cd4..a54eabe 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.css
++++ b/src/app/pages/library/components/library-section/library-section.component.css
+@@ -94,6 +94,13 @@
+ .row > * {
+   scroll-snap-align: start;
+ }
++.row--wrap {
++  grid-auto-flow: row;
++  grid-auto-columns: auto;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  overflow: visible;
++  scroll-snap-type: none;
++}
+ .row::-webkit-scrollbar {
+   display: none;
+ }
+diff --git a/src/app/pages/library/components/library-section/library-section.component.html b/src/app/pages/library/components/library-section/library-section.component.html
+index e908279..50e83ed 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.html
++++ b/src/app/pages/library/components/library-section/library-section.component.html
+@@ -24,7 +24,7 @@
+     }
+   </header>
+ 
+-  <div class="row" [style.--min]="minItem()" [style.--mobile]="mobileItem()">
++  <div class="row" [class.row--wrap]="wrap()" [style.--min]="minItem()" [style.--mobile]="mobileItem()">
+     <ng-content />
+   </div>
+ </section>
+diff --git a/src/app/pages/library/components/library-section/library-section.component.ts b/src/app/pages/library/components/library-section/library-section.component.ts
+index 8949412..2865df9 100644
+--- a/src/app/pages/library/components/library-section/library-section.component.ts
++++ b/src/app/pages/library/components/library-section/library-section.component.ts
+@@ -19,4 +19,6 @@ export class LibrarySectionComponent {
+   readonly minItem = input('13rem');
+   /** Largura de cada item no carrossel (mobile). */
+   readonly mobileItem = input('8rem');
++  /** Mobile: em vez de carrossel, mostra os itens em grade de 2 colunas. */
++  readonly wrap = input(false);
+ }
+diff --git a/src/app/shared/mobile-head/mobile-head.component.css b/src/app/shared/mobile-head/mobile-head.component.css
+new file mode 100644
+index 0000000..b8f6ecb
+--- /dev/null
++++ b/src/app/shared/mobile-head/mobile-head.component.css
+@@ -0,0 +1,67 @@
++/* margens iguais às das telas: só a direita tem respiro (a esquerda vem do padding da página) */
++:host {
++  display: block;
++}
++
++.head {
++  display: grid;
++  gap: 0.9rem;
++  padding: 0.75rem 1.5rem 1rem 0;
++}
++.head__row {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.75rem;
++}
++.brand {
++  display: flex;
++  align-items: center;
++  gap: 0.7rem;
++  min-width: 0;
++  text-decoration: none;
++  color: var(--ink);
++}
++.brand__logo {
++  width: 2.4rem;
++  height: 2.4rem;
++  flex: none;
++  border-radius: 50%;
++  object-fit: cover;
++}
++.brand__name {
++  font: 700 1.15rem/1.1 var(--font-title);
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++}
++.profile {
++  width: 2.6rem;
++  height: 2.6rem;
++  flex: none;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  background: rgba(236, 228, 220, 0.7);
++  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.45);
++  font: 700 0.8rem var(--font-text);
++  text-decoration: none;
++  color: var(--gold-700);
++}
++/* visitante: o atalho do perfil vira o botão "Entrar" */
++.profile--login {
++  width: auto;
++  padding: 0 1.1rem;
++  border-radius: 999px;
++  background: var(--gold-600);
++  box-shadow: none;
++  font-size: 0.72rem;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #fff;
++}
++
++@media (min-width: 1024px) {
++  :host {
++    display: none;
++  }
++}
+diff --git a/src/app/shared/mobile-head/mobile-head.component.html b/src/app/shared/mobile-head/mobile-head.component.html
+new file mode 100644
+index 0000000..de41b60
+--- /dev/null
++++ b/src/app/shared/mobile-head/mobile-head.component.html
+@@ -0,0 +1,14 @@
++<header class="head">
++  <div class="head__row">
++    <a class="brand" routerLink="/inicio">
++      <img class="brand__logo" src="logo-museu-musica.jpg" alt="" />
++      <span class="brand__name">Museu da Música Itu</span>
++    </a>
++    @if (auth.isLoggedIn()) {
++      <a class="profile" routerLink="/perfil" aria-label="Abrir meu perfil">{{ initials() }}</a>
++    } @else {
++      <a class="profile profile--login" routerLink="/login">Entrar</a>
++    }
++  </div>
++  <ng-content />
++</header>
+diff --git a/src/app/shared/mobile-head/mobile-head.component.ts b/src/app/shared/mobile-head/mobile-head.component.ts
+new file mode 100644
+index 0000000..a8f30e5
+--- /dev/null
++++ b/src/app/shared/mobile-head/mobile-head.component.ts
+@@ -0,0 +1,23 @@
++import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
++import { AuthService } from '../../core/auth/auth.service';
++import { UserService } from '../../core/services/user.service';
++
++/**
++ * Cabeçalho das telas no mobile: marca do museu e atalho do usuário (perfil, ou "Entrar" para visitante),
++ * com um espaço (ng-content) para a busca. No desktop some, porque o menu assume.
++ */
++@Component({
++  selector: 'app-mobile-head',
++  standalone: false,
++  templateUrl: './mobile-head.component.html',
++  styleUrl: './mobile-head.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class MobileHeadComponent {
++  protected readonly auth = inject(AuthService);
++  private readonly user = inject(UserService);
++
++  protected readonly initials = computed(() =>
++    this.user.name().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''),
++  );
++}
+diff --git a/src/app/shared/search-field/search-field.component.html b/src/app/shared/search-field/search-field.component.html
+index 75be130..1502f5e 100644
+--- a/src/app/shared/search-field/search-field.component.html
++++ b/src/app/shared/search-field/search-field.component.html
+@@ -3,5 +3,5 @@
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+     <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round" />
+   </svg>
+-  <input type="search" [placeholder]="placeholder()" [value]="value()" (input)="onInput($event)" />
++  <input #field type="search" [placeholder]="placeholder()" [value]="value()" (input)="onInput($event)" (keydown.enter)="submitted.emit(field.value)" />
+ </label>
+diff --git a/src/app/shared/search-field/search-field.component.ts b/src/app/shared/search-field/search-field.component.ts
+index 1ba0235..73f4b86 100644
+--- a/src/app/shared/search-field/search-field.component.ts
++++ b/src/app/shared/search-field/search-field.component.ts
+@@ -1,4 +1,4 @@
+-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
++import { ChangeDetectionStrategy, Component, ElementRef, input, output, viewChild } from '@angular/core';
+ 
+ /** Campo de busca em pílula (mesmo visual do cabeçalho mobile da Biblioteca). */
+ @Component({
+@@ -12,6 +12,14 @@ export class SearchFieldComponent {
+   readonly placeholder = input('Buscar...');
+   readonly value = input('');
+   readonly valueChange = output<string>();
++  /** Enter dentro do campo. */
++  readonly submitted = output<string>();
++  private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
++
++  /** Leva o cursor para o campo (ex.: atalho Ctrl+K). */
++  focus(): void {
++    this.field()?.nativeElement.focus();
++  }
+ 
+   protected onInput(event: Event): void {
+     this.valueChange.emit((event.target as HTMLInputElement).value);
+diff --git a/src/app/shared/shared.module.ts b/src/app/shared/shared.module.ts
+index 131f8cd..46ab7e3 100644
+--- a/src/app/shared/shared.module.ts
++++ b/src/app/shared/shared.module.ts
+@@ -1,15 +1,17 @@
+ import { CommonModule } from '@angular/common';
+ import { NgModule } from '@angular/core';
++import { RouterModule } from '@angular/router';
+ import { CassetteTapeComponent } from './cassette-tape/cassette-tape.component';
+ import { CdDiscComponent } from './cd-disc/cd-disc.component';
+ import { FilterChipsComponent } from './filter-chips/filter-chips.component';
++import { MobileHeadComponent } from './mobile-head/mobile-head.component';
+ import { SearchFieldComponent } from './search-field/search-field.component';
+ import { VinylDiscComponent } from './vinyl-disc/vinyl-disc.component';
+ 
+-/** Disco de vinil, CD, fita K7 e campo de busca: usados em várias telas. */
++/** Disco de vinil, CD, fita K7, campo de busca, chips e cabeçalho mobile: usados em várias telas. */
+ @NgModule({
+-  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, FilterChipsComponent],
+-  imports: [CommonModule],
+-  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, FilterChipsComponent],
++  declarations: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, FilterChipsComponent, MobileHeadComponent],
++  imports: [CommonModule, RouterModule],
++  exports: [VinylDiscComponent, CassetteTapeComponent, CdDiscComponent, SearchFieldComponent, FilterChipsComponent, MobileHeadComponent],
+ })
+ export class SharedModule {}

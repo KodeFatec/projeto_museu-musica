@@ -1,0 +1,70 @@
+<div class="page">
+  <!-- mobile: marca e perfil (no desktop isso fica no menu) -->
+  <app-mobile-head />
+
+  <p class="strip">
+    <span>Museu da Música Itu <i>/</i> Descobrir</span>
+    <span class="strip__count">{{ explore.songsTotal() }} músicas • {{ explore.artistsTotal() }} artistas catalogados</span>
+  </p>
+
+  <header class="intro">
+    <h1>Busca &amp; Explorar o Acervo</h1>
+    <p class="lead">Descubra gravações originais, artistas, partituras raras e instrumentos históricos do museu.</p>
+  </header>
+
+  <section class="search-card" aria-label="Buscar no acervo">
+    <div class="search-row">
+      <app-search-field
+        class="search-row__field"
+        placeholder="Pesquisar por música, artista, ISRC, gênero ou instrumento..."
+        [value]="library.query()"
+        (valueChange)="onSearchText($event)"
+        (submitted)="submitSearch()"
+      />
+      <kbd class="kbd">Ctrl + K</kbd>
+      <button type="button" class="locate" (click)="submitSearch()">Localizar</button>
+    </div>
+
+    <div class="filters">
+      <span class="filters__label">Filtros:</span>
+      <app-filter-chips label="Tipo de item" [options]="explore.scopeChips()" [value]="explore.scope()" (valueChange)="explore.setScope($event)" />
+    </div>
+  </section>
+
+  @if (library.status() === 'error') {
+    <div class="state">
+      <p>{{ library.error() }}</p>
+      <button type="button" (click)="home.reload()">Tentar novamente</button>
+    </div>
+  } @else if (library.status() === 'loading') {
+    <p class="state">Carregando o acervo…</p>
+  }
+
+  <div class="sections">
+    @if (explore.featured().length) {
+      <app-library-section title="Explorar Coleções" subtitle="Décadas e instrumentos do acervo" [wrap]="true" minItem="18rem" mobileItem="100%">
+        @for (collection of explore.featured(); track collection.id; let i = $index) {
+          <app-collection-card [title]="collection.title" [count]="collection.count" [unit]="collection.unit" [tone]="i" (choose)="pickCollection(collection)" />
+        }
+      </app-library-section>
+    }
+
+    @if (explore.physical().length) {
+      <app-library-section title="Acervo Físico do Museu" subtitle="Formatos e itens catalogados" [wrap]="true" minItem="13rem" mobileItem="100%">
+        @for (item of explore.physical(); track item.id) {
+          <app-physical-card [item]="item" (choose)="pickPhysical(item)" />
+        }
+      </app-library-section>
+    }
+
+    @if (explore.decades().length) {
+      <app-library-section title="Linhas do Tempo &amp; Décadas" subtitle="Gravações por década" minItem="100%" mobileItem="100%">
+        <app-filter-chips label="Década" [options]="decadeChips()" value="" (valueChange)="pickDecade($event)" />
+      </app-library-section>
+    }
+
+    @if (home.museum(); as museum) {
+      <app-museum-banner [museum]="museum" [rooms]="home.rooms()" [capacity]="home.totalCapacity()" />
+    }
+  </div>
+</div>

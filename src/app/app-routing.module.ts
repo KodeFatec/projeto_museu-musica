@@ -16,7 +16,14 @@ const routes: Routes = [
   // Perfil só para quem fez login: visitante vai para /login e volta depois
   { path: 'perfil', canActivate: [authGuard], loadChildren: () => import('./pages/library/library.module').then((m) => m.LibraryModule) },
   { path: 'tocando', loadChildren: () => import('./pages/now-playing/now-playing.module').then((m) => m.NowPlayingModule) },
-  { path: 'descobrir', data: { title: 'Descobrir' }, loadChildren: comingSoon },
+  {
+    path: 'descobrir',
+    children: [
+      // tela futura: recebe os critérios pela URL (veja core/models/explore-query.model.ts)
+      { path: 'resultados', data: { title: 'Resultados da busca' }, loadChildren: comingSoon },
+      { path: '', loadChildren: () => import('./pages/explore/explore.module').then((m) => m.ExploreModule) },
+    ],
+  },
   { path: 'instrumentos', loadChildren: () => import('./pages/instruments/instruments.module').then((m) => m.InstrumentsModule) },
   { path: '**', redirectTo: 'inicio' },
 ];

@@ -1,0 +1,67 @@
+/* margens iguais às das telas: só a direita tem respiro (a esquerda vem do padding da página) */
+:host {
+  display: block;
+}
+
+.head {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.75rem 1.5rem 1rem 0;
+}
+.head__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--ink);
+}
+.brand__logo {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.brand__name {
+  font: 700 1.15rem/1.1 var(--font-title);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.profile {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(236, 228, 220, 0.7);
+  box-shadow: 0 0 0 2px rgba(197, 154, 69, 0.45);
+  font: 700 0.8rem var(--font-text);
+  text-decoration: none;
+  color: var(--gold-700);
+}
+/* visitante: o atalho do perfil vira o botão "Entrar" */
+.profile--login {
+  width: auto;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: var(--gold-600);
+  box-shadow: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+@media (min-width: 1024px) {
+  :host {
+    display: none;
+  }
+}

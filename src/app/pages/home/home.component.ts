@@ -6,7 +6,6 @@ import { AuthService } from '../../core/auth/auth.service';
 import { HomeService } from '../../core/services/home.service';
 import { FormatFilter, LibraryService } from '../../core/services/library.service';
 import { PlayerService } from '../../core/services/player.service';
-import { UserService } from '../../core/services/user.service';
 
 /**
  * Tela "Início": eventos (atividade), artistas, seleção do acervo (musica) e dados do museu.
@@ -22,7 +21,6 @@ import { UserService } from '../../core/services/user.service';
 export class HomeComponent implements OnInit {
   protected readonly home = inject(HomeService);
   protected readonly library = inject(LibraryService);
-  protected readonly user = inject(UserService);
   protected readonly auth = inject(AuthService);
   private readonly player = inject(PlayerService);
   private readonly router = inject(Router);
@@ -39,9 +37,6 @@ export class HomeComponent implements OnInit {
   /** Evento exibido (limitado ao tamanho da lista, que pode mudar ao recarregar). */
   protected readonly activeIndex = computed(() =>
     Math.min(this.requestedIndex(), Math.max(this.home.events().length - 1, 0)),
-  );
-  protected readonly initials = computed(() =>
-    this.user.name().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''),
   );
 
   ngOnInit(): void {
