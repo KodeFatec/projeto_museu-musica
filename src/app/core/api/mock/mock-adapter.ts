@@ -178,6 +178,20 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return respond(config, envelope(db.atividades.filter((a) => activityIds.has(a.id_atividade)) as unknown as Row[]));
   }
 
+  // --- detalhe do instrumento (rota planejada): item + mídias + localização + eventos
+  if (resource === 'instrumentos' && first !== undefined && method === 'get') {
+    const item = db.instrumentos.find((i) => String(i.id_item) === first);
+    if (!item) return fail(config, 404, 'Instrumento não encontrado');
+    const localizacoes = db.itemLocalizacoes
+      .filter((l) => l.id_item === item.id_item)
+      .map((l) => {
+        const room = db.salas.find((s) => s.id_sala === l.id_sala);
+        return { ...l, sala: room ? { nome: room.nome, descricao: room.descricao } : undefined };
+      });
+    const activityIds = new Set(db.atividadeItens.filter((ai) => ai.id_item === item.id_item).map((ai) => ai.id_atividade));
+    return respond(config, { ...item, localizacoes, atividades: db.atividades.filter((a) => activityIds.has(a.id_atividade)) });
+  }
+
   // --- museu (rota planejada): um único registro
   if (resource === 'museu' && method === 'get') return respond(config, db.museu);
 

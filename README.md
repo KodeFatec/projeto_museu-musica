@@ -20,7 +20,7 @@ Com o mock, entre com **arthur@museu.example** (ou CPF **529.982.247-25**) e a s
 também funciona (guarda só em memória: some ao recarregar).
 
 ## Rotas
-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo)
+/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo) · /instrumentos/:id (detalhe do instrumento, aberto ao clicar num instrumento da listagem)
 
 ## Arquitetura
 - core/models/dto.ts  -> formato exato da API (colunas do banco)
@@ -29,7 +29,7 @@ também funciona (guarda só em memória: some ao recarregar).
 - core/mappers -> DTO -> modelo
 - core/repositories -> uma chamada HTTP por método
 - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
-- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
+- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos e detalhe) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
 
 ## De onde vem cada informação da tela
 | Na tela | Tabela.coluna |
@@ -49,6 +49,13 @@ também funciona (guarda só em memória: some ao recarregar).
 | Curtidas / coração | musica_favorita |
 | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
 | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
+| Detalhe do instrumento: título grande ("PIANO"), subtítulo, ano | instrumento.tipo_instrumento, item_acervo.titulo, instrumento.ano_fabricacao |
+| Detalhe: texto "quote" | item_acervo.descricao |
+| Detalhe: código `#ITEM-005` e selo de conservação | item_acervo.id_item, estado_conservacao |
+| Detalhe: Ficha do instrumento (tipo, fabricante, ano, conservação, origem, adquirido em, antigo dono) | instrumento.tipo_instrumento, fabricante, ano_fabricacao, antigo_dono + item_acervo.estado_conservacao, origem, data_aquisicao |
+| Detalhe: foto principal e galeria; players de áudio e vídeo; documentos | midia.arquivo_url por midia.tipo_midia (o tipo vem do texto de tipo_midia ou da extensão do arquivo); midia.descricao como legenda |
+| Detalhe: Localização (sala atual e anteriores, "desde...") | item_localizacao.data_inicio, data_fim + sala.nome, descricao |
+| Detalhe: Eventos & Memória | atividade ligada ao item: atividade_item -> atividade |
 | Descobrir: coleções por década ("Anos 80 — N gravações") | contagem de musica por ano_gravacao (década) |
 | Descobrir: coleções por instrumento ("Cordas — N instrumentos") | contagem de instrumento.tipo_instrumento |
 | Descobrir: Acervo físico (vinis, fitas K7, CDs) | contagem de musica por formato (regra do ano) |
@@ -108,6 +115,8 @@ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musi
 Planejadas (o front já chama; no mock funcionam):
 - GET /generos
 - GET /instrumentos (JOIN instrumento + item_acervo, com `midias`)
+- GET /instrumentos/:id (o mesmo item, mais `localizacoes`: item_localizacao + `sala` {nome, descricao}, e `atividades`: atividade_item -> atividade).
+  Se essa rota falhar, a tela de detalhe mostra o que a listagem já tem (sem localização e eventos).
 - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
 - GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
 - POST /auth/login e POST /auth/register (veja a seção Autenticação)

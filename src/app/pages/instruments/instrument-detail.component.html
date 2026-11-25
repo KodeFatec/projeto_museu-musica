@@ -1,0 +1,57 @@
+@if (detail.detail(); as item) {
+  <div class="page">
+    <header class="top">
+      <!-- mobile -->
+      <div class="top__mobile">
+        <button type="button" class="back" aria-label="Voltar" (click)="goBack()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div>
+          <p class="top__eyebrow">Museu da Música Itu</p>
+          <h2 class="top__title">Instrumento</h2>
+        </div>
+      </div>
+
+      <!-- desktop -->
+      <nav class="crumbs" aria-label="Você está em">
+        <a routerLink="/inicio">Início</a>
+        <span aria-hidden="true">/</span>
+        <a routerLink="/instrumentos">Instrumentos</a>
+        <span aria-hidden="true">/</span>
+        <strong>{{ item.title }}</strong>
+      </nav>
+    </header>
+
+    <app-instrument-hero
+      [instrument]="item"
+      [photo]="photo()"
+      [shareLabel]="copied() ? 'Link copiado!' : 'Compartilhar ficha'"
+      (share)="share()"
+    />
+
+    <div class="columns">
+      <div class="main">
+        <app-instrument-facts [instrument]="item" />
+        @if (others().length) {
+          <app-instrument-media [media]="others()" />
+        }
+      </div>
+
+      <aside class="side">
+        @if (item.locations.length) {
+          <app-instrument-locations [locations]="item.locations" />
+        }
+        <app-artist-timeline [events]="item.events" emptyText="Nenhum evento do museu com este instrumento." />
+      </aside>
+    </div>
+  </div>
+} @else if (detail.status() === 'error') {
+  <div class="state">
+    <p>{{ detail.error() }}</p>
+    <a routerLink="/instrumentos">Voltar aos instrumentos</a>
+  </div>
+} @else {
+  <p class="state">Carregando…</p>
+}

@@ -17,6 +17,9 @@ export interface ExploreQuery {
   formato?: MediaFormat;
   /** instrumento.tipo_instrumento. */
   instrumento?: string;
+  /** colecao.id_colecao. */
+  colecao?: number;
+  colecao_titulo?: string;
 }
 
 /** O formato vai na URL em português: vinil, k7 ou cd. */
@@ -32,12 +35,15 @@ export function toQueryParams(query: ExploreQuery): Params {
   if (query.decada) params['decada'] = query.decada;
   if (query.formato) params['formato'] = FORMAT_TO_URL[query.formato];
   if (query.instrumento) params['instrumento'] = query.instrumento;
+  if (query.colecao) params['colecao'] = query.colecao;
+  if (query.colecao_titulo) params['colecao_titulo'] = query.colecao_titulo;
   return params;
 }
 
 /** Lado de lá: queryParams da URL -> ExploreQuery (ignora valores inválidos). */
 export function fromQueryParams(params: ParamMap): ExploreQuery {
   const decade = Number(params.get('decada'));
+  const colecao = Number(params.get('colecao'));
   const scope = params.get('tipo') as SearchScope | null;
   const format = URL_TO_FORMAT[params.get('formato') ?? ''];
   return {
@@ -46,5 +52,7 @@ export function fromQueryParams(params: ParamMap): ExploreQuery {
     decada: Number.isInteger(decade) && decade > 0 ? decade : undefined,
     formato: format,
     instrumento: params.get('instrumento') || undefined,
+    colecao: Number.isInteger(colecao) && colecao > 0 ? colecao : undefined,
+    colecao_titulo: params.get('colecao_titulo') || undefined,
   };
 }

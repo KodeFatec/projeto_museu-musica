@@ -9,6 +9,7 @@ export const ENDPOINTS = {
   letras: '/letra_trecho',
   favoritas: '/musicas-favoritas',
   historico: '/historico_musica',
+  colecoes: '/colecoes',
   generos: '/generos-musicais',
   musicaArtista: '/musica-artista',
   usuarios: '/usuarios',

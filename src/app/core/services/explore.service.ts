@@ -1,6 +1,10 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { toTrack } from '../mappers/track.mapper';
+import { ColecaoDto } from '../models/dto';
 import { ExploreQuery, SearchScope } from '../models/explore-query.model';
 import { MediaFormat } from '../models/media.model';
+import { Track } from '../models/track.model';
+import { CatalogRepository } from '../repositories/catalog.repository';
 import { SongDetailRepository } from '../repositories/song-detail.repository';
 import { formatByYear } from '../utils/media-format';
 import { CatalogService } from './catalog.service';
@@ -11,13 +15,15 @@ import { LibraryService } from './library.service';
 /** Tipo de item escolhido nos filtros da busca ('all' = tudo). */
 export type ExploreScope = 'all' | SearchScope;
 
-/** Cartão de coleção: uma década de gravações ou um tipo de instrumento. */
+/** Cartão de coleção: uma coleção do banco, década de gravações ou tipo de instrumento. */
 export interface Collection {
   id: string;
-  kind: 'decade' | 'instrument';
+  kind: 'collection' | 'decade' | 'instrument';
   title: string;
   count: number;
   unit: string;
+  collectionId?: number;
+  description?: string;
   decade?: number;
   type?: string;
 }
@@ -45,12 +51,14 @@ const decadeOf = (year?: number | null) => (year ? Math.floor(year / 10) * 10 : 
 @Injectable({ providedIn: 'root' })
 export class ExploreService {
   private readonly catalog = inject(CatalogService);
+  private readonly catalogRepo = inject(CatalogRepository);
   private readonly library = inject(LibraryService);
   private readonly home = inject(HomeService);
   private readonly instruments = inject(InstrumentsService);
   private readonly songDetails = inject(SongDetailRepository);
 
   readonly scope = signal<ExploreScope>('all');
+  readonly collections = signal<ColecaoDto[]>([]);
   private readonly scoresTotal = signal(0);
   private loading?: Promise<void>;
 
@@ -80,8 +88,20 @@ export class ExploreService {
     return counts;
   });
 
-  /** Coleções em destaque: as décadas com mais gravações e os tipos de instrumento mais comuns. */
+  /** Coleções em destaque: coleções do banco de dados (tabela colecao). */
   readonly featured = computed<Collection[]>(() => {
+    const dbCols = this.collections();
+    if (dbCols.length > 0) {
+      return dbCols.map((c): Collection => ({
+        id: `col-${c.id_colecao}`,
+        kind: 'collection',
+        title: c.titulo,
+        count: c.total_musicas ?? c.total_itens ?? 0,
+        unit: (c.total_musicas ?? c.total_itens ?? 0) === 1 ? 'música' : 'músicas',
+        collectionId: c.id_colecao,
+        description: c.descricao ?? undefined,
+      }));
+    }
     const byCount = [...this.decades()].sort((a, b) => b.count - a.count || b.decade - a.decade);
     const types = this.instrumentTypes().slice(0, 3);
     const decadeSlots = Math.max(3, FEATURED - types.length);
@@ -134,6 +154,9 @@ export class ExploreService {
   }
 
   forCollection(collection: Collection): ExploreQuery {
+    if (collection.kind === 'collection') {
+      return { tipo: 'musicas', colecao: collection.collectionId, colecao_titulo: collection.title };
+    }
     return collection.kind === 'decade'
       ? { decada: collection.decade }
       : { tipo: 'instrumentos', instrumento: collection.type };
@@ -158,10 +181,21 @@ export class ExploreService {
     return { decada: decade };
   }
 
+  async getCollectionTracks(collectionId: number): Promise<Track[]> {
+    await this.catalog.load();
+    const songs = await this.catalogRepo.listCollectionSongs(collectionId);
+    return songs.map((s) => {
+      const existing = this.catalog.byId(s.id_musica);
+      if (existing) return existing;
+      return toTrack(s, new Map(), new Map(), []);
+    });
+  }
+
   private async fetch(): Promise<void> {
     await Promise.all([
       this.library.load(),
       this.instruments.load(),
+      this.catalogRepo.listCollections().then((cols) => this.collections.set(cols), () => undefined),
       // partituras só entram na contagem: se a rota falhar, o cartão simplesmente não aparece
       this.songDetails.listAllScores().then((rows) => this.scoresTotal.set(rows.length), () => undefined),
     ]);

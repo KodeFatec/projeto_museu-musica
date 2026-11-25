@@ -12,6 +12,8 @@ import { elapsed, shortDate } from '../../../../core/utils/date-format';
 })
 export class ArtistTimelineComponent {
   readonly events = input.required<MuseumEvent[]>();
+  /** Mensagem quando não há eventos. */
+  readonly emptyText = input('Nenhum evento do museu ligado às obras deste artista.');
 
   protected date(event: MuseumEvent): string {
     return event.startDate ? shortDate(event.startDate) : '';

@@ -19,7 +19,7 @@ import { dateRange } from '../../../../core/utils/date-format';
           @if (instrument().type) { <span class="tag">{{ instrument().type }}</span> }
           <span>#ITEM-{{ instrument().id.toString().padStart(3, '0') }}</span>
         </p>
-        <h2>{{ instrument().title }}</h2>
+        <h2><a class="link" [routerLink]="['/instrumentos', instrument().id]">{{ instrument().title }}</a></h2>
         @if (instrument().year || instrument().maker) {
           <p class="meta">{{ instrument().year ? 'Ano ' + instrument().year : '' }}{{ instrument().year && instrument().maker ? ' • ' : '' }}{{ instrument().maker }}</p>
         }
@@ -46,7 +46,11 @@ import { dateRange } from '../../../../core/utils/date-format';
     </article>
   `,
   styles: `
-    .card { display: grid; grid-template-columns: 7rem minmax(0, 1fr) 15rem; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid rgba(197,154,69,.25); border-radius: 1rem; background: #fffdf8; box-shadow: 0 4px 14px rgba(60,45,20,.07); }
+    .card { position: relative; display: grid; transition: box-shadow .2s, border-color .2s; grid-template-columns: 7rem minmax(0, 1fr) 15rem; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid rgba(197,154,69,.25); border-radius: 1rem; background: #fffdf8; box-shadow: 0 4px 14px rgba(60,45,20,.07); }
+    .card:hover, .card:focus-within { border-color: var(--gold-500); box-shadow: 0 8px 22px rgba(60,45,20,.14); }
+    .link { color: inherit; text-decoration: none; }
+    .link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+    .card:hover h2 .link { color: var(--gold-700); }
     .photo { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: .75rem; background: linear-gradient(145deg, #2b241e, #1e1915); color: var(--gold-300); font-size: 2rem; }
     .photo img { width: 100%; height: 100%; object-fit: cover; }
     .eyebrow { display: flex; gap: .5rem; margin: 0 0 .35rem; font-size: .7rem; color: var(--muted); }
@@ -55,7 +59,7 @@ import { dateRange } from '../../../../core/utils/date-format';
     .meta, .description, .details { margin: .35rem 0 0; color: var(--muted); }
     .description { font-style: italic; }
     .details { display: grid; gap: .35rem; text-align: right; font-size: .78rem; }
-    .play { justify-self: end; width: 3rem; height: 3rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold-500); color: #1c1308; cursor: pointer; box-shadow: 0 4px 12px rgba(197,154,69,.25); }
+    .play { position: relative; z-index: 1; justify-self: end; width: 3rem; height: 3rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold-500); color: #1c1308; cursor: pointer; box-shadow: 0 4px 12px rgba(197,154,69,.25); }
     .play svg { width: 1.35rem; height: 1.35rem; }
     .play:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
     @media (max-width: 800px) { .card { grid-template-columns: 5rem minmax(0, 1fr); } .details { grid-column: 1 / -1; text-align: left; } .play { justify-self: start; } }

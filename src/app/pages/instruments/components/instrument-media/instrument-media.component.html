@@ -1,0 +1,51 @@
+<section>
+  <header class="head">
+    <p class="eyebrow">Registro do acervo</p>
+    <h2>Fotos, áudios e documentos</h2>
+  </header>
+
+  @if (images().length) {
+    <ul class="gallery">
+      @for (image of images(); track image.id) {
+        <li>
+          <a class="shot" [href]="image.url" target="_blank" rel="noopener" [attr.aria-label]="'Abrir foto' + (image.description ? ': ' + image.description : '')">
+            <img [src]="image.url" [alt]="image.description ?? 'Foto do instrumento'" loading="lazy" />
+            @if (image.description) {
+              <span class="shot__caption">{{ image.description }}</span>
+            }
+          </a>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (audios().length) {
+    <ul class="players">
+      @for (audio of audios(); track audio.id) {
+        <li>
+          <p class="players__label">{{ audio.description ?? 'Áudio do instrumento' }}</p>
+          <audio controls preload="none" [src]="audio.url"></audio>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (videos().length) {
+    <ul class="players">
+      @for (video of videos(); track video.id) {
+        <li>
+          <p class="players__label">{{ video.description ?? 'Vídeo do instrumento' }}</p>
+          <video controls preload="none" [src]="video.url"></video>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (documents().length) {
+    <ul class="docs">
+      @for (doc of documents(); track doc.id) {
+        <li><a [href]="doc.url" target="_blank" rel="noopener">{{ doc.description ?? 'Abrir documento' }}</a></li>
+      }
+    </ul>
+  }
+</section>

@@ -42,7 +42,7 @@
 
   <div class="sections">
     @if (explore.featured().length) {
-      <app-library-section title="Explorar Coleções" subtitle="Décadas e instrumentos do acervo" [wrap]="true" minItem="18rem" mobileItem="100%">
+      <app-library-section title="Explorar Coleções" subtitle="Coleções históricas do acervo" [wrap]="true" minItem="18rem" mobileItem="100%">
         @for (collection of explore.featured(); track collection.id; let i = $index) {
           <app-collection-card [title]="collection.title" [count]="collection.count" [unit]="collection.unit" [tone]="i" (choose)="pickCollection(collection)" />
         }

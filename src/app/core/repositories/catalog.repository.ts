@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ApiClient } from '../api/api-client.service';
 import { ENDPOINTS } from '../api/endpoints';
-import { ArtistaDto, GeneroMusicalDto, InstrumentoDto, MusicaArtistaDto, MusicaDto } from '../models/dto';
+import { ArtistaDto, ColecaoDto, GeneroMusicalDto, InstrumentoDetalheDto, InstrumentoDto, MusicaArtistaDto, MusicaDto } from '../models/dto';
 
 /** Músicas, gêneros, artistas e a ligação entre eles. */
 @Injectable({ providedIn: 'root' })
@@ -26,5 +26,15 @@ export class CatalogRepository {
   }
   listInstruments(): Promise<InstrumentoDto[]> {
     return this.api.list<InstrumentoDto>(ENDPOINTS.instrumentos);
+  }
+  /** GET /instrumentos/:id (PLANEJADA): detalhe com mídias, localização e eventos. */
+  getInstrument(id: number): Promise<InstrumentoDetalheDto> {
+    return this.api.get<InstrumentoDetalheDto>(`${ENDPOINTS.instrumentos}/${id}`);
+  }
+  listCollections(): Promise<ColecaoDto[]> {
+    return this.api.list<ColecaoDto>(ENDPOINTS.colecoes);
+  }
+  listCollectionSongs(collectionId: number): Promise<MusicaDto[]> {
+    return this.api.list<MusicaDto>(`${ENDPOINTS.colecoes}/${collectionId}/musicas`);
   }
 }

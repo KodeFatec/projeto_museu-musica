@@ -1,0 +1,50 @@
+<section class="hero">
+  <figure class="photo">
+    @if (photo(); as image) {
+      <img [src]="image.url" [alt]="image.description ?? instrument().title" />
+      <a class="photo__zoom" [href]="image.url" target="_blank" rel="noopener" aria-label="Abrir a foto em tamanho real">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m21 21-4.3-4.3M11 8v6M8 11h6M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </a>
+    } @else {
+      <svg class="photo__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18V5l11-2v13M9 18a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 9 18Zm11-2a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 20 16Z" />
+      </svg>
+    }
+    @if (instrument().year) {
+      <figcaption class="photo__year">{{ instrument().year }}</figcaption>
+    }
+  </figure>
+
+  <div class="text">
+    <p class="eyebrow">
+      <span class="eyebrow__code">{{ code() }}</span>
+      @if (instrument().condition) {
+        <span class="eyebrow__chip">{{ instrument().condition }}</span>
+      }
+    </p>
+    <h1 class="title">{{ heading() }}</h1>
+    @if (subtitle()) {
+      <p class="subtitle">{{ subtitle() }}</p>
+    }
+
+    @if (instrument().description) {
+      <blockquote class="quote">{{ instrument().description }}</blockquote>
+    }
+
+    @if (quick().length) {
+      <dl class="quick">
+        @for (fact of quick(); track fact.label) {
+          <div>
+            <dt>{{ fact.label }}</dt>
+            <dd>{{ fact.value }}</dd>
+          </div>
+        }
+      </dl>
+    }
+
+    <button type="button" class="share" (click)="share.emit()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7.2 10.7 16.8 6m-9.6 7.3 9.6 4.7M19 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM9 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm10 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      {{ shareLabel() }}
+    </button>
+  </div>
+</section>
