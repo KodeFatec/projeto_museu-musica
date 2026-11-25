@@ -2,9 +2,8 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
 
-const comingSoon = () => import('./pages/coming-soon/coming-soon.module').then((m) => m.ComingSoonModule);
-
 const auth = () => import('./pages/auth/auth.module').then((m) => m.AuthModule);
+const trackResults = () => import('./pages/track-results/track-results.module').then((m) => m.TrackResultsModule);
 
 const routes: Routes = [
   // login e cadastro usam a mesma casca; `data.mode` escolhe o formulário
@@ -19,8 +18,7 @@ const routes: Routes = [
   {
     path: 'descobrir',
     children: [
-      // tela futura: recebe os critérios pela URL (veja core/models/explore-query.model.ts)
-      { path: 'resultados', data: { title: 'Resultados da busca' }, loadChildren: comingSoon },
+      { path: 'resultados', data: { title: 'Resultados da busca' }, loadChildren: trackResults },
       { path: '', loadChildren: () => import('./pages/explore/explore.module').then((m) => m.ExploreModule) },
     ],
   },
