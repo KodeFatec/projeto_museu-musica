@@ -10,6 +10,15 @@ export interface ListResponse<T> {
   dados: T[];
 }
 
+/** Tabela `colecao` — GET /api/colecoes. */
+export interface ColecaoDto {
+  id_colecao: number;
+  titulo: string;
+  descricao: string | null;
+  total_musicas?: number;
+  total_itens?: number;
+}
+
 /** Tabela `musica` — GET /api/musicas (existe). */
 export interface MusicaDto {
   id_musica: number;
@@ -198,4 +207,28 @@ export interface AuthResponse {
   usuario?: UsuarioDto;
   dados?: UsuarioDto;
   mensagem?: string;
+}
+
+/**
+ * Tabela `item_localizacao` (+ `sala`): onde o item do acervo esteve e está.
+ * Faz parte do detalhe do instrumento (GET /api/instrumentos/:id, PLANEJADA).
+ */
+export interface ItemLocalizacaoDto {
+  id_localizacao: number;
+  id_item: number;
+  id_sala: number;
+  /** "YYYY-MM-DD" ou "YYYY-MM-DD HH:MM:SS" */
+  data_inicio: string;
+  /** null = ainda está nesta sala */
+  data_fim: string | null;
+  sala?: { nome: string; descricao?: string | null };
+}
+
+/**
+ * GET /api/instrumentos/:id (PLANEJADA): o instrumento (instrumento + item_acervo + `midia`) já com
+ * a localização (item_localizacao + sala) e os eventos em que aparece (atividade_item -> atividade).
+ */
+export interface InstrumentoDetalheDto extends InstrumentoDto {
+  localizacoes?: ItemLocalizacaoDto[];
+  atividades?: AtividadeDto[];
 }

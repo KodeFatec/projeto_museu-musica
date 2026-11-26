@@ -16,7 +16,7 @@
     </div>
   </header>
 
-  @if (catalog.status() === 'loading' || catalog.status() === 'idle') {
+  @if (catalog.status() === 'loading' || catalog.status() === 'idle' || loadingCollection()) {
     <p class="state">Carregando o acervo…</p>
   } @else if (catalog.status() === 'error') {
     <div class="state">

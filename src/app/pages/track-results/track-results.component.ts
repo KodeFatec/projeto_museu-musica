@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CassetteSpec, MediaFormat, VinylLabel } from '../../core/models/media.model';
 import { fromQueryParams } from '../../core/models/explore-query.model';
 import { Track } from '../../core/models/track.model';
+import { CatalogRepository } from '../../core/repositories/catalog.repository';
 import { CatalogService } from '../../core/services/catalog.service';
 import { PlayerService } from '../../core/services/player.service';
 import { cassetteOf, formatByYear, vinylLabelOf } from '../../core/utils/media-format';
@@ -20,16 +21,21 @@ const normalize = (value: string) =>
 })
 export class TrackResultsComponent implements OnInit {
   protected readonly catalog = inject(CatalogService);
+  protected readonly catalogRepo = inject(CatalogRepository);
   protected readonly player = inject(PlayerService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly query = signal(fromQueryParams(this.route.snapshot.queryParamMap));
+  protected readonly loadingCollection = signal(false);
+  private readonly collectionSongIds = signal<Set<number> | null>(null);
 
   protected readonly tracks = computed(() => {
     const criteria = this.query();
     const q = normalize(criteria.q?.trim() ?? '');
     if (criteria.tipo && criteria.tipo !== 'musicas') return [];
+    if (criteria.colecao && this.loadingCollection()) return [];
+    const collectionSet = this.collectionSongIds();
     return this.catalog.tracks().filter((track) => {
       const searchable = normalize([
         track.title,
@@ -41,12 +47,15 @@ export class TrackResultsComponent implements OnInit {
       const matchesDecade = !criteria.decada ||
         (track.year !== null && track.year >= criteria.decada && track.year < criteria.decada + 10);
       const matchesFormat = !criteria.formato || formatByYear(track.year) === criteria.formato;
-      return matchesText && matchesDecade && matchesFormat;
+      const matchesCollection = !collectionSet || collectionSet.has(track.id);
+      return matchesText && matchesDecade && matchesFormat && matchesCollection;
     });
   });
 
   protected readonly heading = computed(() => {
     const criteria = this.query();
+    if (criteria.colecao_titulo) return 'Coleção: ' + criteria.colecao_titulo;
+    if (criteria.colecao) return 'Músicas da Coleção #' + criteria.colecao;
     if (criteria.tipo && criteria.tipo !== 'musicas') return 'Resultados do acervo';
     if (criteria.q) return 'Resultados para “' + criteria.q + '”';
     if (criteria.decada) return 'Músicas da década de ' + criteria.decada;
@@ -57,7 +66,26 @@ export class TrackResultsComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.route.queryParamMap.subscribe((params) => this.query.set(fromQueryParams(params)));
+    this.route.queryParamMap.subscribe((params) => {
+      const parsed = fromQueryParams(params);
+      this.query.set(parsed);
+      if (parsed.colecao) {
+        this.loadingCollection.set(true);
+        this.catalogRepo.listCollectionSongs(parsed.colecao).then(
+          (songs) => {
+            this.collectionSongIds.set(new Set(songs.map((s) => s.id_musica)));
+            this.loadingCollection.set(false);
+          },
+          () => {
+            this.collectionSongIds.set(new Set());
+            this.loadingCollection.set(false);
+          },
+        );
+      } else {
+        this.collectionSongIds.set(null);
+        this.loadingCollection.set(false);
+      }
+    });
     void this.catalog.load();
   }
 

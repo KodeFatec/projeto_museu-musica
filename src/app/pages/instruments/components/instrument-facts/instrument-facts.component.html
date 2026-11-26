@@ -1,0 +1,19 @@
+<section>
+  <header class="head">
+    <p class="eyebrow">Dossiê do item</p>
+    <h2>Ficha do Instrumento</h2>
+  </header>
+
+  @if (facts().length) {
+    <dl class="grid">
+      @for (fact of facts(); track fact.label) {
+        <div class="card">
+          <dt>{{ fact.label }}</dt>
+          <dd>{{ fact.value }}</dd>
+        </div>
+      }
+    </dl>
+  } @else {
+    <p class="empty">Este instrumento ainda não tem informações cadastradas.</p>
+  }
+</section>

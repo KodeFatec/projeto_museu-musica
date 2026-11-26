@@ -20,8 +20,12 @@ export class MuseumRepository {
     return this.api.list<AtividadeDto>(`${ENDPOINTS.artistas}/${artistId}/atividades`);
   }
 
-  getMuseum(): Promise<MuseuDto> {
-    return this.api.get<MuseuDto>(ENDPOINTS.museu);
+  async getMuseum(): Promise<MuseuDto> {
+    const res = await this.api.get<any>(`${ENDPOINTS.museu}/1`);
+    if (res && res.dados) {
+      return Array.isArray(res.dados) ? res.dados[0] : res.dados;
+    }
+    return res;
   }
 
   listRooms(): Promise<SalaDto[]> {

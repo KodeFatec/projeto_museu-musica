@@ -1,0 +1,164 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.3rem;
+}
+
+.photo {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, #2b241e, #1e1915);
+  box-shadow: 0 10px 26px rgba(30, 25, 21, 0.2);
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo__icon {
+  width: 22%;
+  color: var(--gold-300);
+}
+.photo__year {
+  position: absolute;
+  left: 0.8rem;
+  top: 0.8rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 4px;
+  background: rgba(20, 16, 10, 0.78);
+  font: 700 0.72rem var(--font-text);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-300);
+}
+.photo__zoom {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 16, 10, 0.78);
+  color: var(--gold-300);
+  transition: background 0.2s;
+}
+.photo__zoom:hover {
+  background: rgba(20, 16, 10, 0.95);
+}
+.photo__zoom svg {
+  width: 1.2rem;
+}
+
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+.eyebrow__code {
+  font: 600 0.7rem var(--font-text);
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.eyebrow__chip {
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 154, 69, 0.6);
+  background: #f4ecd6;
+  font: 700 0.68rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-700);
+}
+
+.title {
+  margin: 0;
+  font: 700 2.4rem/1.05 var(--font-title);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.subtitle {
+  margin: 0.4rem 0 0;
+  font: 500 1.1rem/1.35 var(--font-text);
+  color: var(--gold-700);
+}
+
+.quote {
+  margin: 1.2rem 0 0;
+  padding: 0.2rem 0 0.2rem 1rem;
+  border-left: 3px solid var(--gold-500);
+  font: italic 300 1.1rem/1.6 var(--font-text);
+  color: #3b352e;
+}
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.7rem;
+  margin: 1.3rem 0 0;
+}
+.quick > div {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(197, 154, 69, 0.25);
+  border-radius: 0.75rem;
+  background: #fffdf8;
+}
+.quick dt {
+  font: 600 0.62rem var(--font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.quick dd {
+  margin: 0.2rem 0 0;
+  font: 700 1.1rem/1.2 var(--font-title);
+  color: var(--ink);
+}
+
+.share {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.3rem;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--gold-700);
+  border-radius: 999px;
+  background: none;
+  font: 700 0.72rem var(--font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.share:hover {
+  background: #f4ecd6;
+}
+.share svg {
+  width: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+  .title {
+    font-size: 3.6rem;
+  }
+}

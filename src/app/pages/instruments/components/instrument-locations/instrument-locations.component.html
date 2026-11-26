@@ -1,0 +1,28 @@
+<section>
+  <header class="head">
+    <p class="eyebrow">No museu</p>
+    <h2>Localização</h2>
+  </header>
+
+  <ol class="list">
+    @for (location of locations(); track location.id) {
+      <li class="item" [class.item--current]="location.current">
+        <span class="dot" aria-hidden="true"></span>
+        <div>
+          <p class="room">
+            {{ location.roomName }}
+            @if (location.current) {
+              <span class="badge">Agora</span>
+            }
+          </p>
+          @if (location.roomDescription) {
+            <p class="desc">{{ location.roomDescription }}</p>
+          }
+          @if (period(location)) {
+            <p class="period">{{ period(location) }}</p>
+          }
+        </div>
+      </li>
+    }
+  </ol>
+</section>

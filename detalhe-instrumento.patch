@@ -1,0 +1,1463 @@
+diff --git a/README.md b/README.md
+index fedc1a8..9eb280f 100644
+--- a/README.md
++++ b/README.md
+@@ -20,7 +20,7 @@ Com o mock, entre com **arthur@museu.example** (ou CPF **529.982.247-25**) e a s
+ também funciona (guarda só em memória: some ao recarregar).
+ 
+ ## Rotas
+-/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo)
++/inicio (Início: eventos, artistas, seleção do acervo e museu) · /artista/:id (tela do artista, aberta ao clicar em um artista no Início) · /login e /cadastro (mesma casca) · /perfil (Minha Biblioteca, só logado) · /tocando e /tocando/:id (player) · /descobrir (coleções e busca do acervo) · /descobrir/resultados (provisória: recebe os critérios pela URL) · /instrumentos (listagem do acervo) · /instrumentos/:id (detalhe do instrumento, aberto ao clicar num instrumento da listagem)
+ 
+ ## Arquitetura
+ - core/models/dto.ts  -> formato exato da API (colunas do banco)
+@@ -29,7 +29,7 @@ também funciona (guarda só em memória: some ao recarregar).
+ - core/mappers -> DTO -> modelo
+ - core/repositories -> uma chamada HTTP por método
+ - core/services -> estado (catálogo, biblioteca do usuário, usuário, player)
+-- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
++- shared (vinil e fita, filtros) · layout (menu, mini player) · pages/home (Início) · pages/artist (Artista) · pages/instruments (Instrumentos e detalhe) · pages/explore (Descobrir) · pages/library (Perfil) · pages/now-playing
+ 
+ ## De onde vem cada informação da tela
+ | Na tela | Tabela.coluna |
+@@ -49,6 +49,13 @@ também funciona (guarda só em memória: some ao recarregar).
+ | Curtidas / coração | musica_favorita |
+ | Mais ouvidas, Ouvidas recentemente, retomar de onde parou | historico_musica (contagem, data_reproducao, progresso) |
+ | Disco de ouro (vinil/CD dourado, K7 dourada e selo) | as 5 músicas mais reproduzidas em historico_musica |
++| Detalhe do instrumento: título grande ("PIANO"), subtítulo, ano | instrumento.tipo_instrumento, item_acervo.titulo, instrumento.ano_fabricacao |
++| Detalhe: texto "quote" | item_acervo.descricao |
++| Detalhe: código `#ITEM-005` e selo de conservação | item_acervo.id_item, estado_conservacao |
++| Detalhe: Ficha do instrumento (tipo, fabricante, ano, conservação, origem, adquirido em, antigo dono) | instrumento.tipo_instrumento, fabricante, ano_fabricacao, antigo_dono + item_acervo.estado_conservacao, origem, data_aquisicao |
++| Detalhe: foto principal e galeria; players de áudio e vídeo; documentos | midia.arquivo_url por midia.tipo_midia (o tipo vem do texto de tipo_midia ou da extensão do arquivo); midia.descricao como legenda |
++| Detalhe: Localização (sala atual e anteriores, "desde...") | item_localizacao.data_inicio, data_fim + sala.nome, descricao |
++| Detalhe: Eventos & Memória | atividade ligada ao item: atividade_item -> atividade |
+ | Descobrir: coleções por década ("Anos 80 — N gravações") | contagem de musica por ano_gravacao (década) |
+ | Descobrir: coleções por instrumento ("Cordas — N instrumentos") | contagem de instrumento.tipo_instrumento |
+ | Descobrir: Acervo físico (vinis, fitas K7, CDs) | contagem de musica por formato (regra do ano) |
+@@ -108,6 +115,8 @@ Existem: /musicas, /artistas, /musica-artista, /partituras, /letra_trecho, /musi
+ Planejadas (o front já chama; no mock funcionam):
+ - GET /generos
+ - GET /instrumentos (JOIN instrumento + item_acervo, com `midias`)
++- GET /instrumentos/:id (o mesmo item, mais `localizacoes`: item_localizacao + `sala` {nome, descricao}, e `atividades`: atividade_item -> atividade).
++  Se essa rota falhar, a tela de detalhe mostra o que a listagem já tem (sem localização e eventos).
+ - GET /atividades (com `salas`: JOIN atividade_sala + sala), GET /museu e GET /salas
+ - GET /artistas/:id/atividades (JOIN atividade_item -> partitura -> musica_artista). Já existe: GET /artistas/:id
+ - POST /auth/login e POST /auth/register (veja a seção Autenticação)
+diff --git a/src/app/core/api/mock/mock-adapter.ts b/src/app/core/api/mock/mock-adapter.ts
+index 37ac755..afa412e 100644
+--- a/src/app/core/api/mock/mock-adapter.ts
++++ b/src/app/core/api/mock/mock-adapter.ts
+@@ -178,6 +178,20 @@ export const mockAdapter: AxiosAdapter = async (config) => {
+     return respond(config, envelope(db.atividades.filter((a) => activityIds.has(a.id_atividade)) as unknown as Row[]));
+   }
+ 
++  // --- detalhe do instrumento (rota planejada): item + mídias + localização + eventos
++  if (resource === 'instrumentos' && first !== undefined && method === 'get') {
++    const item = db.instrumentos.find((i) => String(i.id_item) === first);
++    if (!item) return fail(config, 404, 'Instrumento não encontrado');
++    const localizacoes = db.itemLocalizacoes
++      .filter((l) => l.id_item === item.id_item)
++      .map((l) => {
++        const room = db.salas.find((s) => s.id_sala === l.id_sala);
++        return { ...l, sala: room ? { nome: room.nome, descricao: room.descricao } : undefined };
++      });
++    const activityIds = new Set(db.atividadeItens.filter((ai) => ai.id_item === item.id_item).map((ai) => ai.id_atividade));
++    return respond(config, { ...item, localizacoes, atividades: db.atividades.filter((a) => activityIds.has(a.id_atividade)) });
++  }
++
+   // --- museu (rota planejada): um único registro
+   if (resource === 'museu' && method === 'get') return respond(config, db.museu);
+ 
+diff --git a/src/app/core/api/mock/mock-db.ts b/src/app/core/api/mock/mock-db.ts
+index 5012b92..a969cb9 100644
+--- a/src/app/core/api/mock/mock-db.ts
++++ b/src/app/core/api/mock/mock-db.ts
+@@ -52,27 +52,31 @@ export const generos: GeneroMusicalDto[] = [
+ 
+ export const instrumentos = [
+   {
+-    id_item: 1, titulo: 'Piano de cauda Steinway', descricao: 'Instrumento de concerto preservado pelo museu.',
++    id_item: 101, titulo: 'Piano de cauda Steinway', descricao: 'Instrumento de concerto preservado pelo museu.',
+     origem: 'Salão Nobre', data_aquisicao: '1998-05-12', estado_conservacao: 'Restaurado',
+     tipo_instrumento: 'Piano', fabricante: 'Steinway & Sons', ano_fabricacao: 1928, antigo_dono: 'Coleção particular de Itu',
+-    midias: [],
++    midias: [
++      { id_midia: 1, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%233b2f25'/><stop offset='1' stop-color='%231e1915'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Piano de cauda</text></svg>", descricao: 'Vista geral' },
++      { id_midia: 2, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%235a3a1f'/><stop offset='1' stop-color='%232b241e'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Teclado</text></svg>", descricao: 'Teclado de marfim' },
++      { id_midia: 3, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%232f3a2c'/><stop offset='1' stop-color='%231e1915'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Cordoame</text></svg>", descricao: 'Cordoame e quadro' },
++    ],
+   },
+   {
+-    id_item: 2, titulo: 'Violão de nylon', descricao: 'Tampo em pinho seco e timbre quente.',
++    id_item: 102, titulo: 'Violão de nylon', descricao: 'Tampo em pinho seco e timbre quente.',
+     origem: 'São Paulo', data_aquisicao: '2004-09-03', estado_conservacao: 'Bom',
+     tipo_instrumento: 'Cordas', fabricante: 'Del Vecchio', ano_fabricacao: 1964, antigo_dono: null, midias: [],
+   },
+   {
+-    id_item: 3, titulo: 'Guitarra elétrica', descricao: 'Ataque percussivo e brilho característico.',
++    id_item: 103, titulo: 'Guitarra elétrica', descricao: 'Ataque percussivo e brilho característico.',
+     origem: 'Recife', data_aquisicao: '2011-02-18', estado_conservacao: 'Regular',
+     tipo_instrumento: 'Cordas', fabricante: 'Gibson', ano_fabricacao: 1972, antigo_dono: 'Músico de trio elétrico', midias: [],
+   },
+   {
+-    id_item: 4, titulo: 'Saxofone tenor', descricao: null, origem: 'Rio de Janeiro', data_aquisicao: null,
++    id_item: 104, titulo: 'Saxofone tenor', descricao: null, origem: 'Rio de Janeiro', data_aquisicao: null,
+     estado_conservacao: 'Bom', tipo_instrumento: 'Sopros', fabricante: 'Selmer', ano_fabricacao: 1959, antigo_dono: null, midias: [],
+   },
+   {
+-    id_item: 5, titulo: 'Cavaquinho', descricao: null, origem: 'Bahia', data_aquisicao: null,
++    id_item: 105, titulo: 'Cavaquinho', descricao: null, origem: 'Bahia', data_aquisicao: null,
+     estado_conservacao: 'Restaurado', tipo_instrumento: 'Cordas', fabricante: 'Di Giorgio', ano_fabricacao: 1948, antigo_dono: null, midias: [],
+   },
+ ];
+@@ -350,6 +354,9 @@ export const atividadeItens = [
+   { id_atividade: 6, id_item: 1, laudo_saida: null, laudo_retorno: null },
+   { id_atividade: 7, id_item: 1, laudo_saida: null, laudo_retorno: null },
+   { id_atividade: 8, id_item: 1, laudo_saida: null, laudo_retorno: null },
++  // instrumentos usam ids de item_acervo próprios (101...): o piano aparece em dois eventos
++  { id_atividade: 1, id_item: 101, laudo_saida: null, laudo_retorno: null },
++  { id_atividade: 3, id_item: 101, laudo_saida: null, laudo_retorno: null },
+ ];
+ 
+ /**
+@@ -359,3 +366,10 @@ export const atividadeItens = [
+ export const credenciais: { id_usuario: number; cpf: string; senha: string }[] = [
+   { id_usuario: 1, cpf: '52998224725', senha: 'museu123' },
+ ];
++
++/** Tabela `item_localizacao`: em que sala cada item esteve (data_fim null = está lá agora). */
++export const itemLocalizacoes = [
++  { id_localizacao: 1, id_item: 101, id_sala: 4, data_inicio: '1998-06-01', data_fim: '2020-05-12' },
++  { id_localizacao: 2, id_item: 101, id_sala: 2, data_inicio: '2020-05-12', data_fim: null },
++  { id_localizacao: 3, id_item: 102, id_sala: 1, data_inicio: '2004-09-10', data_fim: null },
++];
+diff --git a/src/app/core/mappers/instrument.mapper.ts b/src/app/core/mappers/instrument.mapper.ts
+index 0b7aac1..0ead99b 100644
+--- a/src/app/core/mappers/instrument.mapper.ts
++++ b/src/app/core/mappers/instrument.mapper.ts
+@@ -1,5 +1,6 @@
+-import { InstrumentoDto } from '../models/dto';
+-import { Instrument } from '../models/instrument.model';
++import { InstrumentoDetalheDto, InstrumentoDto, ItemLocalizacaoDto, MidiaDto } from '../models/dto';
++import { Instrument, InstrumentDetail, InstrumentMedia, ItemLocation, MediaKind } from '../models/instrument.model';
++import { toEvent } from './event.mapper';
+ import { parseDate } from '../utils/date-format';
+ 
+ export function toInstrument(dto: InstrumentoDto): Instrument {
+@@ -18,3 +19,45 @@ export function toInstrument(dto: InstrumentoDto): Instrument {
+     audioUrl: dto.midias?.find((media) => /audio|som|mp3|wav|ogg/i.test(media.tipo_midia ?? ''))?.arquivo_url,
+   };
+ }
++
++/** Descobre o tipo do arquivo pelo `tipo_midia` (texto livre) e, se não bastar, pela extensão. */
++function mediaKind(media: MidiaDto): MediaKind {
++  const type = (media.tipo_midia ?? '').toLowerCase();
++  const url = media.arquivo_url.split('?')[0].toLowerCase();
++  if (/imagem|image|foto|photo/.test(type) || /\.(jpe?g|png|webp|gif|avif|svg)$/.test(url) || url.startsWith('data:image')) return 'image';
++  if (/[aá]udio|audio|som|mp3|wav|ogg/.test(type) || /\.(mp3|wav|ogg|flac|m4a)$/.test(url)) return 'audio';
++  if (/v[ií]deo|video|mp4|webm/.test(type) || /\.(mp4|webm|mov)$/.test(url)) return 'video';
++  return 'document';
++}
++
++export function toInstrumentMedia(media: MidiaDto): InstrumentMedia {
++  return { id: media.id_midia, kind: mediaKind(media), url: media.arquivo_url, description: media.descricao ?? undefined };
++}
++
++export function toItemLocation(dto: ItemLocalizacaoDto, today: Date = new Date()): ItemLocation {
++  const since = parseDate(dto.data_inicio);
++  const until = parseDate(dto.data_fim);
++  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
++  return {
++    id: dto.id_localizacao,
++    roomName: dto.sala?.nome ?? `Sala ${dto.id_sala}`,
++    roomDescription: dto.sala?.descricao ?? undefined,
++    since,
++    until,
++    current: !until || until >= startOfToday,
++  };
++}
++
++export function toInstrumentDetail(dto: InstrumentoDetalheDto): InstrumentDetail {
++  return {
++    ...toInstrument(dto),
++    media: (dto.midias ?? []).map(toInstrumentMedia),
++    // a sala atual primeiro; depois as anteriores, da mais recente para a mais antiga
++    locations: (dto.localizacoes ?? [])
++      .map((l) => toItemLocation(l))
++      .sort((a, b) => Number(b.current) - Number(a.current) || (b.since?.getTime() ?? 0) - (a.since?.getTime() ?? 0)),
++    events: (dto.atividades ?? [])
++      .map(toEvent)
++      .sort((a, b) => (b.startDate?.getTime() ?? 0) - (a.startDate?.getTime() ?? 0)),
++  };
++}
+diff --git a/src/app/core/models/dto.ts b/src/app/core/models/dto.ts
+index 8aaf4b8..4e41854 100644
+--- a/src/app/core/models/dto.ts
++++ b/src/app/core/models/dto.ts
+@@ -199,3 +199,27 @@ export interface AuthResponse {
+   dados?: UsuarioDto;
+   mensagem?: string;
+ }
++
++/**
++ * Tabela `item_localizacao` (+ `sala`): onde o item do acervo esteve e está.
++ * Faz parte do detalhe do instrumento (GET /api/instrumentos/:id, PLANEJADA).
++ */
++export interface ItemLocalizacaoDto {
++  id_localizacao: number;
++  id_item: number;
++  id_sala: number;
++  /** "YYYY-MM-DD" ou "YYYY-MM-DD HH:MM:SS" */
++  data_inicio: string;
++  /** null = ainda está nesta sala */
++  data_fim: string | null;
++  sala?: { nome: string; descricao?: string | null };
++}
++
++/**
++ * GET /api/instrumentos/:id (PLANEJADA): o instrumento (instrumento + item_acervo + `midia`) já com
++ * a localização (item_localizacao + sala) e os eventos em que aparece (atividade_item -> atividade).
++ */
++export interface InstrumentoDetalheDto extends InstrumentoDto {
++  localizacoes?: ItemLocalizacaoDto[];
++  atividades?: AtividadeDto[];
++}
+diff --git a/src/app/core/models/instrument.model.ts b/src/app/core/models/instrument.model.ts
+index ec5aa17..72d5bea 100644
+--- a/src/app/core/models/instrument.model.ts
++++ b/src/app/core/models/instrument.model.ts
+@@ -1,3 +1,5 @@
++import { MuseumEvent } from './event.model';
++
+ export interface Instrument {
+   id: number;
+   title: string;
+@@ -12,3 +14,32 @@ export interface Instrument {
+   photoUrl?: string;
+   audioUrl?: string;
+ }
++
++export type MediaKind = 'image' | 'audio' | 'video' | 'document';
++
++/** Arquivo do instrumento (`midia`). */
++export interface InstrumentMedia {
++  id: number;
++  kind: MediaKind;
++  url: string;
++  /** midia.descricao */
++  description?: string;
++}
++
++/** Sala onde o instrumento esteve (`item_localizacao` + `sala`). */
++export interface ItemLocation {
++  id: number;
++  roomName: string;
++  roomDescription?: string;
++  since?: Date;
++  until?: Date;
++  /** Ainda está nesta sala. */
++  current: boolean;
++}
++
++/** Tudo o que o banco guarda sobre um instrumento, para a tela de detalhe. */
++export interface InstrumentDetail extends Instrument {
++  media: InstrumentMedia[];
++  locations: ItemLocation[];
++  events: MuseumEvent[];
++}
+diff --git a/src/app/core/repositories/catalog.repository.ts b/src/app/core/repositories/catalog.repository.ts
+index 3d43bd1..f52062a 100644
+--- a/src/app/core/repositories/catalog.repository.ts
++++ b/src/app/core/repositories/catalog.repository.ts
+@@ -1,7 +1,7 @@
+ import { Injectable } from '@angular/core';
+ import { ApiClient } from '../api/api-client.service';
+ import { ENDPOINTS } from '../api/endpoints';
+-import { ArtistaDto, GeneroMusicalDto, InstrumentoDto, MusicaArtistaDto, MusicaDto } from '../models/dto';
++import { ArtistaDto, GeneroMusicalDto, InstrumentoDetalheDto, InstrumentoDto, MusicaArtistaDto, MusicaDto } from '../models/dto';
+ 
+ /** Músicas, gêneros, artistas e a ligação entre eles. */
+ @Injectable({ providedIn: 'root' })
+@@ -27,4 +27,8 @@ export class CatalogRepository {
+   listInstruments(): Promise<InstrumentoDto[]> {
+     return this.api.list<InstrumentoDto>(ENDPOINTS.instrumentos);
+   }
++  /** GET /instrumentos/:id (PLANEJADA): detalhe com mídias, localização e eventos. */
++  getInstrument(id: number): Promise<InstrumentoDetalheDto> {
++    return this.api.get<InstrumentoDetalheDto>(`${ENDPOINTS.instrumentos}/${id}`);
++  }
+ }
+diff --git a/src/app/core/services/instrument-detail.service.ts b/src/app/core/services/instrument-detail.service.ts
+new file mode 100644
+index 0000000..f3735da
+--- /dev/null
++++ b/src/app/core/services/instrument-detail.service.ts
+@@ -0,0 +1,60 @@
++import { Injectable, signal } from '@angular/core';
++import { toApiError } from '../api/api-error';
++import { toInstrumentDetail } from '../mappers/instrument.mapper';
++import { Instrument, InstrumentDetail, InstrumentMedia } from '../models/instrument.model';
++import { CatalogRepository } from '../repositories/catalog.repository';
++import { LoadStatus } from './catalog.service';
++import { InstrumentsService } from './instruments.service';
++
++/**
++ * Estado da tela de detalhe do instrumento. Busca GET /instrumentos/:id; se essa rota falhar mas o
++ * instrumento existir na listagem, mostra o que a listagem já sabe (sem localização nem eventos).
++ */
++@Injectable({ providedIn: 'root' })
++export class InstrumentDetailService {
++  readonly status = signal<LoadStatus>('idle');
++  readonly error = signal<string | null>(null);
++  readonly detail = signal<InstrumentDetail | null>(null);
++  private currentId: number | null = null;
++
++  constructor(
++    private readonly repository: CatalogRepository,
++    private readonly instruments: InstrumentsService,
++  ) {}
++
++  async load(id: number): Promise<void> {
++    if (this.currentId === id && this.status() === 'ready') return;
++    this.currentId = id;
++    this.status.set('loading');
++    this.error.set(null);
++    this.detail.set(null);
++
++    try {
++      const dto = await this.repository.getInstrument(id);
++      if (this.currentId === id) this.finish(toInstrumentDetail(dto));
++    } catch (e) {
++      if (this.currentId !== id) return;
++      // a rota de detalhe pode não existir ainda: tenta com os dados da listagem
++      await this.instruments.load();
++      const base = this.instruments.instruments().find((i) => i.id === id);
++      if (this.currentId !== id) return;
++      if (base) this.finish(this.fromList(base));
++      else {
++        this.error.set(toApiError(e).message);
++        this.status.set('error');
++      }
++    }
++  }
++
++  private finish(detail: InstrumentDetail): void {
++    this.detail.set(detail);
++    this.status.set('ready');
++  }
++
++  private fromList(base: Instrument): InstrumentDetail {
++    const media: InstrumentMedia[] = [];
++    if (base.photoUrl) media.push({ id: -1, kind: 'image', url: base.photoUrl });
++    if (base.audioUrl) media.push({ id: -2, kind: 'audio', url: base.audioUrl });
++    return { ...base, media, locations: [], events: [] };
++  }
++}
+diff --git a/src/app/pages/artist/artist.module.ts b/src/app/pages/artist/artist.module.ts
+index d792d4d..c57342d 100644
+--- a/src/app/pages/artist/artist.module.ts
++++ b/src/app/pages/artist/artist.module.ts
+@@ -4,11 +4,11 @@ import { RouterModule } from '@angular/router';
+ import { TrackCardsModule } from '../library/components/track-cards.module';
+ import { ArtistComponent } from './artist.component';
+ import { ArtistHeroComponent } from './components/artist-hero/artist-hero.component';
+-import { ArtistTimelineComponent } from './components/artist-timeline/artist-timeline.component';
++import { ArtistTimelineModule } from './components/artist-timeline/artist-timeline.module';
+ 
+ /** Tela do artista, carregada sob demanda (/artista/:id). */
+ @NgModule({
+-  declarations: [ArtistComponent, ArtistHeroComponent, ArtistTimelineComponent],
+-  imports: [CommonModule, TrackCardsModule, RouterModule.forChild([{ path: ':id', component: ArtistComponent }])],
++  declarations: [ArtistComponent, ArtistHeroComponent],
++  imports: [CommonModule, TrackCardsModule, ArtistTimelineModule, RouterModule.forChild([{ path: ':id', component: ArtistComponent }])],
+ })
+ export class ArtistModule {}
+diff --git a/src/app/pages/artist/components/artist-timeline/artist-timeline.component.html b/src/app/pages/artist/components/artist-timeline/artist-timeline.component.html
+index 7382816..8ebbd0c 100644
+--- a/src/app/pages/artist/components/artist-timeline/artist-timeline.component.html
++++ b/src/app/pages/artist/components/artist-timeline/artist-timeline.component.html
+@@ -36,6 +36,6 @@
+       }
+     </ol>
+   } @else {
+-    <p class="empty">Nenhum evento do museu ligado às obras deste artista.</p>
++    <p class="empty">{{ emptyText() }}</p>
+   }
+ </section>
+diff --git a/src/app/pages/artist/components/artist-timeline/artist-timeline.component.ts b/src/app/pages/artist/components/artist-timeline/artist-timeline.component.ts
+index f169e14..1aa68a1 100644
+--- a/src/app/pages/artist/components/artist-timeline/artist-timeline.component.ts
++++ b/src/app/pages/artist/components/artist-timeline/artist-timeline.component.ts
+@@ -12,6 +12,8 @@ import { elapsed, shortDate } from '../../../../core/utils/date-format';
+ })
+ export class ArtistTimelineComponent {
+   readonly events = input.required<MuseumEvent[]>();
++  /** Mensagem quando não há eventos. */
++  readonly emptyText = input('Nenhum evento do museu ligado às obras deste artista.');
+ 
+   protected date(event: MuseumEvent): string {
+     return event.startDate ? shortDate(event.startDate) : '';
+diff --git a/src/app/pages/artist/components/artist-timeline/artist-timeline.module.ts b/src/app/pages/artist/components/artist-timeline/artist-timeline.module.ts
+new file mode 100644
+index 0000000..9d46222
+--- /dev/null
++++ b/src/app/pages/artist/components/artist-timeline/artist-timeline.module.ts
+@@ -0,0 +1,11 @@
++import { CommonModule } from '@angular/common';
++import { NgModule } from '@angular/core';
++import { ArtistTimelineComponent } from './artist-timeline.component';
++
++/** Linha do tempo "Eventos & Memória": usada nas telas do artista e do instrumento. */
++@NgModule({
++  declarations: [ArtistTimelineComponent],
++  imports: [CommonModule],
++  exports: [ArtistTimelineComponent],
++})
++export class ArtistTimelineModule {}
+diff --git a/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts b/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts
+index 01c55f7..36ce508 100644
+--- a/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts
++++ b/src/app/pages/instruments/components/instrument-card/instrument-card.component.ts
+@@ -19,7 +19,7 @@ import { dateRange } from '../../../../core/utils/date-format';
+           @if (instrument().type) { <span class="tag">{{ instrument().type }}</span> }
+           <span>#ITEM-{{ instrument().id.toString().padStart(3, '0') }}</span>
+         </p>
+-        <h2>{{ instrument().title }}</h2>
++        <h2><a class="link" [routerLink]="['/instrumentos', instrument().id]">{{ instrument().title }}</a></h2>
+         @if (instrument().year || instrument().maker) {
+           <p class="meta">{{ instrument().year ? 'Ano ' + instrument().year : '' }}{{ instrument().year && instrument().maker ? ' • ' : '' }}{{ instrument().maker }}</p>
+         }
+@@ -46,7 +46,11 @@ import { dateRange } from '../../../../core/utils/date-format';
+     </article>
+   `,
+   styles: `
+-    .card { display: grid; grid-template-columns: 7rem minmax(0, 1fr) 15rem; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid rgba(197,154,69,.25); border-radius: 1rem; background: #fffdf8; box-shadow: 0 4px 14px rgba(60,45,20,.07); }
++    .card { position: relative; display: grid; transition: box-shadow .2s, border-color .2s; grid-template-columns: 7rem minmax(0, 1fr) 15rem; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid rgba(197,154,69,.25); border-radius: 1rem; background: #fffdf8; box-shadow: 0 4px 14px rgba(60,45,20,.07); }
++    .card:hover, .card:focus-within { border-color: var(--gold-500); box-shadow: 0 8px 22px rgba(60,45,20,.14); }
++    .link { color: inherit; text-decoration: none; }
++    .link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
++    .card:hover h2 .link { color: var(--gold-700); }
+     .photo { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: .75rem; background: linear-gradient(145deg, #2b241e, #1e1915); color: var(--gold-300); font-size: 2rem; }
+     .photo img { width: 100%; height: 100%; object-fit: cover; }
+     .eyebrow { display: flex; gap: .5rem; margin: 0 0 .35rem; font-size: .7rem; color: var(--muted); }
+@@ -55,7 +59,7 @@ import { dateRange } from '../../../../core/utils/date-format';
+     .meta, .description, .details { margin: .35rem 0 0; color: var(--muted); }
+     .description { font-style: italic; }
+     .details { display: grid; gap: .35rem; text-align: right; font-size: .78rem; }
+-    .play { justify-self: end; width: 3rem; height: 3rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold-500); color: #1c1308; cursor: pointer; box-shadow: 0 4px 12px rgba(197,154,69,.25); }
++    .play { position: relative; z-index: 1; justify-self: end; width: 3rem; height: 3rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold-500); color: #1c1308; cursor: pointer; box-shadow: 0 4px 12px rgba(197,154,69,.25); }
+     .play svg { width: 1.35rem; height: 1.35rem; }
+     .play:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+     @media (max-width: 800px) { .card { grid-template-columns: 5rem minmax(0, 1fr); } .details { grid-column: 1 / -1; text-align: left; } .play { justify-self: start; } }
+diff --git a/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.css b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.css
+new file mode 100644
+index 0000000..d8bf028
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.css
+@@ -0,0 +1,59 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.head {
++  margin-bottom: 1rem;
++}
++.eyebrow {
++  margin: 0 0 0.25rem;
++  font: 700 0.65rem var(--font-text);
++  letter-spacing: 0.2em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++h2 {
++  margin: 0;
++  font: 700 1.4rem var(--font-title);
++  color: var(--ink);
++}
++
++.grid {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 0.8rem;
++  margin: 0;
++}
++.card {
++  min-width: 0;
++  padding: 1rem 1.1rem;
++  border: 1px solid rgba(197, 154, 69, 0.25);
++  border-radius: 0.9rem;
++  background: #fffdf8;
++  box-shadow: 0 3px 10px rgba(60, 45, 20, 0.06);
++}
++dt {
++  font: 600 0.62rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--muted);
++}
++dd {
++  margin: 0.35rem 0 0;
++  font: 700 1.15rem/1.3 var(--font-title);
++  overflow-wrap: anywhere;
++  color: var(--ink);
++}
++
++.empty {
++  margin: 0;
++  font: italic 400 1rem var(--font-text);
++  color: var(--muted);
++}
++
++@media (min-width: 1024px) {
++  .grid {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++}
+diff --git a/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.html b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.html
+new file mode 100644
+index 0000000..6024542
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.html
+@@ -0,0 +1,19 @@
++<section>
++  <header class="head">
++    <p class="eyebrow">Dossiê do item</p>
++    <h2>Ficha do Instrumento</h2>
++  </header>
++
++  @if (facts().length) {
++    <dl class="grid">
++      @for (fact of facts(); track fact.label) {
++        <div class="card">
++          <dt>{{ fact.label }}</dt>
++          <dd>{{ fact.value }}</dd>
++        </div>
++      }
++    </dl>
++  } @else {
++    <p class="empty">Este instrumento ainda não tem informações cadastradas.</p>
++  }
++</section>
+diff --git a/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.ts b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.ts
+new file mode 100644
+index 0000000..36fcdfd
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-facts/instrument-facts.component.ts
+@@ -0,0 +1,29 @@
++import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
++import { Instrument } from '../../../../core/models/instrument.model';
++import { dateRange } from '../../../../core/utils/date-format';
++
++/** Ficha do item: cada informação que o banco guarda sobre o instrumento, em cartões. */
++@Component({
++  selector: 'app-instrument-facts',
++  standalone: false,
++  templateUrl: './instrument-facts.component.html',
++  styleUrl: './instrument-facts.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentFactsComponent {
++  readonly instrument = input.required<Instrument>();
++
++  /** Só os campos preenchidos (instrumento + item_acervo). */
++  protected readonly facts = computed(() => {
++    const i = this.instrument();
++    return [
++      { label: 'Tipo de instrumento', value: i.type },
++      { label: 'Fabricante', value: i.maker },
++      { label: 'Ano de fabricação', value: i.year ? String(i.year) : undefined },
++      { label: 'Estado de conservação', value: i.condition },
++      { label: 'Origem', value: i.origin },
++      { label: 'Adquirido em', value: i.acquiredAt ? dateRange(i.acquiredAt) : undefined },
++      { label: 'Antigo dono', value: i.formerOwner },
++    ].filter((f): f is { label: string; value: string } => !!f.value);
++  });
++}
+diff --git a/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.css b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.css
+new file mode 100644
+index 0000000..9a15adf
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.css
+@@ -0,0 +1,164 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.hero {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 1.3rem;
++}
++
++.photo {
++  position: relative;
++  margin: 0;
++  aspect-ratio: 4 / 3;
++  display: grid;
++  place-items: center;
++  overflow: hidden;
++  border-radius: 1.1rem;
++  background: linear-gradient(145deg, #2b241e, #1e1915);
++  box-shadow: 0 10px 26px rgba(30, 25, 21, 0.2);
++}
++.photo img {
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++.photo__icon {
++  width: 22%;
++  color: var(--gold-300);
++}
++.photo__year {
++  position: absolute;
++  left: 0.8rem;
++  top: 0.8rem;
++  padding: 0.2rem 0.65rem;
++  border-radius: 4px;
++  background: rgba(20, 16, 10, 0.78);
++  font: 700 0.72rem var(--font-text);
++  letter-spacing: 0.08em;
++  font-variant-numeric: tabular-nums;
++  color: var(--gold-300);
++}
++.photo__zoom {
++  position: absolute;
++  right: 0.8rem;
++  bottom: 0.8rem;
++  width: 2.5rem;
++  height: 2.5rem;
++  display: grid;
++  place-items: center;
++  border-radius: 50%;
++  background: rgba(20, 16, 10, 0.78);
++  color: var(--gold-300);
++  transition: background 0.2s;
++}
++.photo__zoom:hover {
++  background: rgba(20, 16, 10, 0.95);
++}
++.photo__zoom svg {
++  width: 1.2rem;
++}
++
++.eyebrow {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 0.5rem;
++  margin: 0 0 0.6rem;
++}
++.eyebrow__code {
++  font: 600 0.7rem var(--font-text);
++  letter-spacing: 0.1em;
++  color: var(--muted);
++}
++.eyebrow__chip {
++  padding: 0.25rem 0.8rem;
++  border-radius: 999px;
++  border: 1px solid rgba(197, 154, 69, 0.6);
++  background: #f4ecd6;
++  font: 700 0.68rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++
++.title {
++  margin: 0;
++  font: 700 2.4rem/1.05 var(--font-title);
++  letter-spacing: 0.02em;
++  text-transform: uppercase;
++  color: var(--ink);
++}
++.subtitle {
++  margin: 0.4rem 0 0;
++  font: 500 1.1rem/1.35 var(--font-text);
++  color: var(--gold-700);
++}
++
++.quote {
++  margin: 1.2rem 0 0;
++  padding: 0.2rem 0 0.2rem 1rem;
++  border-left: 3px solid var(--gold-500);
++  font: italic 300 1.1rem/1.6 var(--font-text);
++  color: #3b352e;
++}
++
++.quick {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
++  gap: 0.7rem;
++  margin: 1.3rem 0 0;
++}
++.quick > div {
++  padding: 0.7rem 0.9rem;
++  border: 1px solid rgba(197, 154, 69, 0.25);
++  border-radius: 0.75rem;
++  background: #fffdf8;
++}
++.quick dt {
++  font: 600 0.62rem var(--font-text);
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--muted);
++}
++.quick dd {
++  margin: 0.2rem 0 0;
++  font: 700 1.1rem/1.2 var(--font-title);
++  color: var(--ink);
++}
++
++.share {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.5rem;
++  margin-top: 1.3rem;
++  padding: 0.6rem 1.2rem;
++  border: 1px solid var(--gold-700);
++  border-radius: 999px;
++  background: none;
++  font: 700 0.72rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--ink);
++  cursor: pointer;
++  transition: background 0.2s;
++}
++.share:hover {
++  background: #f4ecd6;
++}
++.share svg {
++  width: 1rem;
++}
++
++@media (min-width: 1024px) {
++  .hero {
++    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
++    gap: 3rem;
++    align-items: start;
++  }
++  .title {
++    font-size: 3.6rem;
++  }
++}
+diff --git a/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.html b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.html
+new file mode 100644
+index 0000000..d440714
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.html
+@@ -0,0 +1,50 @@
++<section class="hero">
++  <figure class="photo">
++    @if (photo(); as image) {
++      <img [src]="image.url" [alt]="image.description ?? instrument().title" />
++      <a class="photo__zoom" [href]="image.url" target="_blank" rel="noopener" aria-label="Abrir a foto em tamanho real">
++        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m21 21-4.3-4.3M11 8v6M8 11h6M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" stroke-linecap="round" stroke-linejoin="round" /></svg>
++      </a>
++    } @else {
++      <svg class="photo__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
++        <path d="M9 18V5l11-2v13M9 18a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 9 18Zm11-2a2.5 2.5 0 1 1-2.5-2.5A2.5 2.5 0 0 1 20 16Z" />
++      </svg>
++    }
++    @if (instrument().year) {
++      <figcaption class="photo__year">{{ instrument().year }}</figcaption>
++    }
++  </figure>
++
++  <div class="text">
++    <p class="eyebrow">
++      <span class="eyebrow__code">{{ code() }}</span>
++      @if (instrument().condition) {
++        <span class="eyebrow__chip">{{ instrument().condition }}</span>
++      }
++    </p>
++    <h1 class="title">{{ heading() }}</h1>
++    @if (subtitle()) {
++      <p class="subtitle">{{ subtitle() }}</p>
++    }
++
++    @if (instrument().description) {
++      <blockquote class="quote">{{ instrument().description }}</blockquote>
++    }
++
++    @if (quick().length) {
++      <dl class="quick">
++        @for (fact of quick(); track fact.label) {
++          <div>
++            <dt>{{ fact.label }}</dt>
++            <dd>{{ fact.value }}</dd>
++          </div>
++        }
++      </dl>
++    }
++
++    <button type="button" class="share" (click)="share.emit()">
++      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7.2 10.7 16.8 6m-9.6 7.3 9.6 4.7M19 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM9 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm10 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" stroke-linecap="round" stroke-linejoin="round" /></svg>
++      {{ shareLabel() }}
++    </button>
++  </div>
++</section>
+diff --git a/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.ts b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.ts
+new file mode 100644
+index 0000000..a1c3d6e
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-hero/instrument-hero.component.ts
+@@ -0,0 +1,37 @@
++import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
++import { InstrumentDetail, InstrumentMedia } from '../../../../core/models/instrument.model';
++
++/** Topo do detalhe: foto principal, tipo, título, descrição e números rápidos do instrumento. */
++@Component({
++  selector: 'app-instrument-hero',
++  standalone: false,
++  templateUrl: './instrument-hero.component.html',
++  styleUrl: './instrument-hero.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentHeroComponent {
++  readonly instrument = input.required<InstrumentDetail>();
++  readonly photo = input<InstrumentMedia>();
++  /** Texto do botão de compartilhar ("Compartilhar ficha" / "Link copiado!"). */
++  readonly shareLabel = input('Compartilhar ficha');
++  readonly share = output<void>();
++
++  /** "#ITEM-004" (id do item_acervo). */
++  protected readonly code = computed(() => `#ITEM-${String(this.instrument().id).padStart(3, '0')}`);
++  /** Título grande: o tipo ("PIANO"); sem tipo, o próprio título do item. */
++  protected readonly heading = computed(() => this.instrument().type ?? this.instrument().title);
++  /** Subtítulo: título do item e o ano, se o tipo já ocupou o título grande. */
++  protected readonly subtitle = computed(() => {
++    const { type, title, year } = this.instrument();
++    if (!type) return year ? `(${year})` : '';
++    return year ? `${title} (${year})` : title;
++  });
++  protected readonly quick = computed(() => {
++    const { year, maker, condition } = this.instrument();
++    return [
++      { label: 'Ano de fabricação', value: year ? String(year) : '' },
++      { label: 'Fabricante', value: maker ?? '' },
++      { label: 'Conservação', value: condition ?? '' },
++    ].filter((f) => f.value);
++  });
++}
+diff --git a/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.css b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.css
+new file mode 100644
+index 0000000..f7f4d7b
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.css
+@@ -0,0 +1,81 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.head {
++  margin-bottom: 0.9rem;
++}
++.eyebrow {
++  margin: 0 0 0.25rem;
++  font: 700 0.65rem var(--font-text);
++  letter-spacing: 0.2em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++h2 {
++  margin: 0;
++  font: 700 1.4rem var(--font-title);
++  color: var(--ink);
++}
++
++.list {
++  display: grid;
++  gap: 0.7rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++.item {
++  display: flex;
++  gap: 0.8rem;
++  padding: 0.9rem 1rem;
++  border: 1px solid rgba(197, 154, 69, 0.2);
++  border-radius: 0.9rem;
++  background: #fffdf8;
++}
++.item--current {
++  border-color: var(--gold-500);
++  background: #fff;
++  box-shadow: 0 4px 14px rgba(60, 45, 20, 0.1);
++}
++.dot {
++  width: 0.7rem;
++  height: 0.7rem;
++  flex: none;
++  margin-top: 0.4rem;
++  border-radius: 50%;
++  background: #cdbf9f;
++}
++.item--current .dot {
++  background: var(--gold-500);
++  box-shadow: 0 0 0 4px rgba(197, 154, 69, 0.25);
++}
++.room {
++  display: flex;
++  align-items: center;
++  gap: 0.5rem;
++  margin: 0;
++  font: 700 1.05rem var(--font-title);
++  color: var(--ink);
++}
++.badge {
++  padding: 0.1rem 0.55rem;
++  border-radius: 999px;
++  background: var(--gold-500);
++  font: 700 0.6rem var(--font-text);
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: #1c1308;
++}
++.desc {
++  margin: 0.1rem 0 0;
++  font: 400 0.82rem var(--font-text);
++  color: var(--muted);
++}
++.period {
++  margin: 0.25rem 0 0;
++  font: 500 0.75rem var(--font-text);
++  font-variant-numeric: tabular-nums;
++  color: var(--gold-700);
++}
+diff --git a/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.html b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.html
+new file mode 100644
+index 0000000..3061074
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.html
+@@ -0,0 +1,28 @@
++<section>
++  <header class="head">
++    <p class="eyebrow">No museu</p>
++    <h2>Localização</h2>
++  </header>
++
++  <ol class="list">
++    @for (location of locations(); track location.id) {
++      <li class="item" [class.item--current]="location.current">
++        <span class="dot" aria-hidden="true"></span>
++        <div>
++          <p class="room">
++            {{ location.roomName }}
++            @if (location.current) {
++              <span class="badge">Agora</span>
++            }
++          </p>
++          @if (location.roomDescription) {
++            <p class="desc">{{ location.roomDescription }}</p>
++          }
++          @if (period(location)) {
++            <p class="period">{{ period(location) }}</p>
++          }
++        </div>
++      </li>
++    }
++  </ol>
++</section>
+diff --git a/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.ts b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.ts
+new file mode 100644
+index 0000000..1c9a66a
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-locations/instrument-locations.component.ts
+@@ -0,0 +1,23 @@
++import { ChangeDetectionStrategy, Component, input } from '@angular/core';
++import { ItemLocation } from '../../../../core/models/instrument.model';
++import { dateRange } from '../../../../core/utils/date-format';
++
++/** Onde o instrumento está no museu e por quais salas já passou (`item_localizacao` + `sala`). */
++@Component({
++  selector: 'app-instrument-locations',
++  standalone: false,
++  templateUrl: './instrument-locations.component.html',
++  styleUrl: './instrument-locations.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentLocationsComponent {
++  readonly locations = input.required<ItemLocation[]>();
++
++  /** "desde 12/05/2020" ou "01/06/1998 – 12/05/2020". */
++  protected period(location: ItemLocation): string {
++    if (!location.since) return '';
++    return location.current && !location.until
++      ? `desde ${dateRange(location.since)}`
++      : dateRange(location.since, location.until);
++  }
++}
+diff --git a/src/app/pages/instruments/components/instrument-media/instrument-media.component.css b/src/app/pages/instruments/components/instrument-media/instrument-media.component.css
+new file mode 100644
+index 0000000..b14bdb2
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-media/instrument-media.component.css
+@@ -0,0 +1,90 @@
++:host {
++  display: block;
++  min-width: 0;
++}
++
++.head {
++  margin-bottom: 1rem;
++}
++.eyebrow {
++  margin: 0 0 0.25rem;
++  font: 700 0.65rem var(--font-text);
++  letter-spacing: 0.2em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++h2 {
++  margin: 0;
++  font: 700 1.4rem var(--font-title);
++  color: var(--ink);
++}
++
++ul {
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++ul + ul {
++  margin-top: 1.2rem;
++}
++
++.gallery {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 0.8rem;
++}
++.shot {
++  position: relative;
++  display: block;
++  aspect-ratio: 4 / 3;
++  overflow: hidden;
++  border-radius: 0.9rem;
++  background: #1e1915;
++}
++.shot img {
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++  transition: transform 0.4s;
++}
++.shot:hover img {
++  transform: scale(1.05);
++}
++.shot__caption {
++  position: absolute;
++  inset: auto 0 0 0;
++  padding: 1.4rem 0.8rem 0.6rem;
++  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
++  font: 600 0.75rem var(--font-text);
++  color: #fff;
++}
++
++.players {
++  display: grid;
++  gap: 0.9rem;
++}
++.players__label {
++  margin: 0 0 0.35rem;
++  font: 600 0.8rem var(--font-text);
++  color: #4e463a;
++}
++audio,
++video {
++  width: 100%;
++  border-radius: 0.6rem;
++}
++
++.docs {
++  display: grid;
++  gap: 0.5rem;
++}
++.docs a {
++  font: 600 0.85rem var(--font-text);
++  color: var(--gold-700);
++}
++
++@media (min-width: 1024px) {
++  .gallery {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++}
+diff --git a/src/app/pages/instruments/components/instrument-media/instrument-media.component.html b/src/app/pages/instruments/components/instrument-media/instrument-media.component.html
+new file mode 100644
+index 0000000..941a088
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-media/instrument-media.component.html
+@@ -0,0 +1,51 @@
++<section>
++  <header class="head">
++    <p class="eyebrow">Registro do acervo</p>
++    <h2>Fotos, áudios e documentos</h2>
++  </header>
++
++  @if (images().length) {
++    <ul class="gallery">
++      @for (image of images(); track image.id) {
++        <li>
++          <a class="shot" [href]="image.url" target="_blank" rel="noopener" [attr.aria-label]="'Abrir foto' + (image.description ? ': ' + image.description : '')">
++            <img [src]="image.url" [alt]="image.description ?? 'Foto do instrumento'" loading="lazy" />
++            @if (image.description) {
++              <span class="shot__caption">{{ image.description }}</span>
++            }
++          </a>
++        </li>
++      }
++    </ul>
++  }
++
++  @if (audios().length) {
++    <ul class="players">
++      @for (audio of audios(); track audio.id) {
++        <li>
++          <p class="players__label">{{ audio.description ?? 'Áudio do instrumento' }}</p>
++          <audio controls preload="none" [src]="audio.url"></audio>
++        </li>
++      }
++    </ul>
++  }
++
++  @if (videos().length) {
++    <ul class="players">
++      @for (video of videos(); track video.id) {
++        <li>
++          <p class="players__label">{{ video.description ?? 'Vídeo do instrumento' }}</p>
++          <video controls preload="none" [src]="video.url"></video>
++        </li>
++      }
++    </ul>
++  }
++
++  @if (documents().length) {
++    <ul class="docs">
++      @for (doc of documents(); track doc.id) {
++        <li><a [href]="doc.url" target="_blank" rel="noopener">{{ doc.description ?? 'Abrir documento' }}</a></li>
++      }
++    </ul>
++  }
++</section>
+diff --git a/src/app/pages/instruments/components/instrument-media/instrument-media.component.ts b/src/app/pages/instruments/components/instrument-media/instrument-media.component.ts
+new file mode 100644
+index 0000000..2412b39
+--- /dev/null
++++ b/src/app/pages/instruments/components/instrument-media/instrument-media.component.ts
+@@ -0,0 +1,19 @@
++import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
++import { InstrumentMedia } from '../../../../core/models/instrument.model';
++
++/** Mídias do item (`midia`): fotos em galeria, áudios e vídeos com player e documentos como link. */
++@Component({
++  selector: 'app-instrument-media',
++  standalone: false,
++  templateUrl: './instrument-media.component.html',
++  styleUrl: './instrument-media.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentMediaComponent {
++  readonly media = input.required<InstrumentMedia[]>();
++
++  protected readonly images = computed(() => this.media().filter((m) => m.kind === 'image'));
++  protected readonly audios = computed(() => this.media().filter((m) => m.kind === 'audio'));
++  protected readonly videos = computed(() => this.media().filter((m) => m.kind === 'video'));
++  protected readonly documents = computed(() => this.media().filter((m) => m.kind === 'document'));
++}
+diff --git a/src/app/pages/instruments/instrument-detail.component.css b/src/app/pages/instruments/instrument-detail.component.css
+new file mode 100644
+index 0000000..8c369fe
+--- /dev/null
++++ b/src/app/pages/instruments/instrument-detail.component.css
+@@ -0,0 +1,124 @@
++:host {
++  display: block;
++  flex: none;
++  max-width: 100%;
++  overflow-x: clip;
++}
++
++.page {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 1.75rem;
++  padding: 0.5rem 1.5rem 11rem;
++}
++.page > * {
++  min-width: 0;
++}
++
++.columns {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 2rem;
++}
++.main,
++.side {
++  display: grid;
++  align-content: start;
++  gap: 2rem;
++  min-width: 0;
++}
++
++.state {
++  margin: 3rem 1.5rem;
++  text-align: center;
++  font: italic 400 1.1rem var(--font-text);
++  color: var(--muted);
++}
++.state a {
++  color: var(--gold-700);
++}
++
++/* ---------- topo ---------- */
++.top__mobile {
++  display: flex;
++  align-items: center;
++  gap: 0.9rem;
++  padding-top: 0.5rem;
++}
++.back {
++  width: 2.8rem;
++  height: 2.8rem;
++  flex: none;
++  display: grid;
++  place-items: center;
++  border: 0;
++  border-radius: 50%;
++  background: rgba(236, 228, 220, 0.7);
++  color: var(--ink);
++  cursor: pointer;
++  transition: transform 0.15s;
++}
++.back:active {
++  transform: scale(0.95);
++}
++.back svg {
++  width: 1.2rem;
++}
++.top__eyebrow {
++  margin: 0;
++  font: 600 0.68rem var(--font-text);
++  letter-spacing: 0.2em;
++  text-transform: uppercase;
++  color: var(--gold-700);
++}
++.top__title {
++  margin: 0;
++  font: 700 1.9rem/1.1 var(--font-title);
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++  color: var(--ink);
++}
++.crumbs {
++  display: none;
++}
++
++/* ---------- desktop ---------- */
++@media (min-width: 1024px) {
++  .page {
++    max-width: 80rem;
++    margin: 0 auto;
++    padding: 1.5rem 1.5rem 8rem;
++    gap: 2.5rem;
++  }
++  .top__mobile {
++    display: none;
++  }
++  .crumbs {
++    display: flex;
++    flex-wrap: wrap;
++    align-items: center;
++    gap: 0.7rem;
++    padding-bottom: 1.2rem;
++    border-bottom: 1px solid #e5dccb;
++    font: 500 0.78rem var(--font-text);
++    letter-spacing: 0.1em;
++    text-transform: uppercase;
++    color: var(--muted);
++  }
++  .crumbs a {
++    color: inherit;
++    text-decoration: none;
++  }
++  .crumbs a:hover {
++    color: var(--gold-700);
++  }
++  .crumbs strong {
++    color: var(--ink);
++  }
++
++  .columns {
++    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
++    gap: 2.5rem;
++    align-items: start;
++  }
++}
+diff --git a/src/app/pages/instruments/instrument-detail.component.html b/src/app/pages/instruments/instrument-detail.component.html
+new file mode 100644
+index 0000000..65820e9
+--- /dev/null
++++ b/src/app/pages/instruments/instrument-detail.component.html
+@@ -0,0 +1,57 @@
++@if (detail.detail(); as item) {
++  <div class="page">
++    <header class="top">
++      <!-- mobile -->
++      <div class="top__mobile">
++        <button type="button" class="back" aria-label="Voltar" (click)="goBack()">
++          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
++            <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round" />
++          </svg>
++        </button>
++        <div>
++          <p class="top__eyebrow">Museu da Música Itu</p>
++          <h2 class="top__title">Instrumento</h2>
++        </div>
++      </div>
++
++      <!-- desktop -->
++      <nav class="crumbs" aria-label="Você está em">
++        <a routerLink="/inicio">Início</a>
++        <span aria-hidden="true">/</span>
++        <a routerLink="/instrumentos">Instrumentos</a>
++        <span aria-hidden="true">/</span>
++        <strong>{{ item.title }}</strong>
++      </nav>
++    </header>
++
++    <app-instrument-hero
++      [instrument]="item"
++      [photo]="photo()"
++      [shareLabel]="copied() ? 'Link copiado!' : 'Compartilhar ficha'"
++      (share)="share()"
++    />
++
++    <div class="columns">
++      <div class="main">
++        <app-instrument-facts [instrument]="item" />
++        @if (others().length) {
++          <app-instrument-media [media]="others()" />
++        }
++      </div>
++
++      <aside class="side">
++        @if (item.locations.length) {
++          <app-instrument-locations [locations]="item.locations" />
++        }
++        <app-artist-timeline [events]="item.events" emptyText="Nenhum evento do museu com este instrumento." />
++      </aside>
++    </div>
++  </div>
++} @else if (detail.status() === 'error') {
++  <div class="state">
++    <p>{{ detail.error() }}</p>
++    <a routerLink="/instrumentos">Voltar aos instrumentos</a>
++  </div>
++} @else {
++  <p class="state">Carregando…</p>
++}
+diff --git a/src/app/pages/instruments/instrument-detail.component.ts b/src/app/pages/instruments/instrument-detail.component.ts
+new file mode 100644
+index 0000000..b4e782c
+--- /dev/null
++++ b/src/app/pages/instruments/instrument-detail.component.ts
+@@ -0,0 +1,51 @@
++import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
++import { ActivatedRoute, Router } from '@angular/router';
++import { InstrumentDetailService } from '../../core/services/instrument-detail.service';
++
++/** Tela de detalhe do instrumento: /instrumentos/:id (aberta ao clicar num instrumento da listagem). */
++@Component({
++  selector: 'app-instrument-detail',
++  standalone: false,
++  templateUrl: './instrument-detail.component.html',
++  styleUrl: './instrument-detail.component.css',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class InstrumentDetailComponent {
++  protected readonly detail = inject(InstrumentDetailService);
++  private readonly router = inject(Router);
++
++  /** A primeira foto vira a foto principal; as demais mídias vão para a galeria. */
++  protected readonly photo = computed(() => this.detail.detail()?.media.find((m) => m.kind === 'image'));
++  protected readonly others = computed(() => (this.detail.detail()?.media ?? []).filter((m) => m !== this.photo()));
++
++  protected readonly copied = signal(false);
++
++  constructor(route: ActivatedRoute) {
++    route.paramMap.pipe(takeUntilDestroyed()).subscribe((params) => void this.detail.load(Number(params.get('id'))));
++  }
++
++  /** Volta para a tela anterior; se a página foi aberta direto, vai para a listagem. */
++  protected goBack(): void {
++    if ((globalThis.history?.length ?? 0) > 1) globalThis.history.back();
++    else void this.router.navigate(['/instrumentos']);
++  }
++
++  /** Compartilha o link da ficha (menu do aparelho) ou, sem isso, copia o link. */
++  protected async share(): Promise<void> {
++    const item = this.detail.detail();
++    const url = globalThis.location?.href;
++    if (!item || !url) return;
++    try {
++      if (typeof navigator.share === 'function') {
++        await navigator.share({ title: item.title, url });
++        return;
++      }
++      await navigator.clipboard.writeText(url);
++      this.copied.set(true);
++      setTimeout(() => this.copied.set(false), 2000);
++    } catch {
++      /* compartilhamento cancelado ou sem permissão */
++    }
++  }
++}
+diff --git a/src/app/pages/instruments/instruments.module.ts b/src/app/pages/instruments/instruments.module.ts
+index e840128..0f1b3ff 100644
+--- a/src/app/pages/instruments/instruments.module.ts
++++ b/src/app/pages/instruments/instruments.module.ts
+@@ -2,11 +2,33 @@ import { CommonModule } from '@angular/common';
+ import { NgModule } from '@angular/core';
+ import { RouterModule } from '@angular/router';
+ import { SharedModule } from '../../shared/shared.module';
++import { ArtistTimelineModule } from '../artist/components/artist-timeline/artist-timeline.module';
+ import { InstrumentCardComponent } from './components/instrument-card/instrument-card.component';
++import { InstrumentFactsComponent } from './components/instrument-facts/instrument-facts.component';
++import { InstrumentHeroComponent } from './components/instrument-hero/instrument-hero.component';
++import { InstrumentLocationsComponent } from './components/instrument-locations/instrument-locations.component';
++import { InstrumentMediaComponent } from './components/instrument-media/instrument-media.component';
++import { InstrumentDetailComponent } from './instrument-detail.component';
+ import { InstrumentsComponent } from './instruments.component';
+ 
+ @NgModule({
+-  declarations: [InstrumentsComponent, InstrumentCardComponent],
+-  imports: [CommonModule, SharedModule, RouterModule.forChild([{ path: '', component: InstrumentsComponent }])],
++  declarations: [
++    InstrumentsComponent,
++    InstrumentCardComponent,
++    InstrumentDetailComponent,
++    InstrumentHeroComponent,
++    InstrumentFactsComponent,
++    InstrumentMediaComponent,
++    InstrumentLocationsComponent,
++  ],
++  imports: [
++    CommonModule,
++    SharedModule,
++    ArtistTimelineModule, // linha do tempo "Eventos & Memória", a mesma da tela do artista
++    RouterModule.forChild([
++      { path: '', component: InstrumentsComponent },
++      { path: ':id', component: InstrumentDetailComponent },
++    ]),
++  ],
+ })
+ export class InstrumentsModule {}

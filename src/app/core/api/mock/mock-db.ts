@@ -52,27 +52,31 @@ export const generos: GeneroMusicalDto[] = [
 
 export const instrumentos = [
   {
-    id_item: 1, titulo: 'Piano de cauda Steinway', descricao: 'Instrumento de concerto preservado pelo museu.',
+    id_item: 101, titulo: 'Piano de cauda Steinway', descricao: 'Instrumento de concerto preservado pelo museu.',
     origem: 'Salão Nobre', data_aquisicao: '1998-05-12', estado_conservacao: 'Restaurado',
     tipo_instrumento: 'Piano', fabricante: 'Steinway & Sons', ano_fabricacao: 1928, antigo_dono: 'Coleção particular de Itu',
-    midias: [],
+    midias: [
+      { id_midia: 1, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%233b2f25'/><stop offset='1' stop-color='%231e1915'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Piano de cauda</text></svg>", descricao: 'Vista geral' },
+      { id_midia: 2, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%235a3a1f'/><stop offset='1' stop-color='%232b241e'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Teclado</text></svg>", descricao: 'Teclado de marfim' },
+      { id_midia: 3, id_item: 101, tipo_midia: 'Imagem', arquivo_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%232f3a2c'/><stop offset='1' stop-color='%231e1915'/></linearGradient></defs><rect width='400' height='300' fill='url(%23g)'/><text x='200' y='160' font-size='28' text-anchor='middle' fill='%23e5c07b' font-family='serif'>Cordoame</text></svg>", descricao: 'Cordoame e quadro' },
+    ],
   },
   {
-    id_item: 2, titulo: 'Violão de nylon', descricao: 'Tampo em pinho seco e timbre quente.',
+    id_item: 102, titulo: 'Violão de nylon', descricao: 'Tampo em pinho seco e timbre quente.',
     origem: 'São Paulo', data_aquisicao: '2004-09-03', estado_conservacao: 'Bom',
     tipo_instrumento: 'Cordas', fabricante: 'Del Vecchio', ano_fabricacao: 1964, antigo_dono: null, midias: [],
   },
   {
-    id_item: 3, titulo: 'Guitarra elétrica', descricao: 'Ataque percussivo e brilho característico.',
+    id_item: 103, titulo: 'Guitarra elétrica', descricao: 'Ataque percussivo e brilho característico.',
     origem: 'Recife', data_aquisicao: '2011-02-18', estado_conservacao: 'Regular',
     tipo_instrumento: 'Cordas', fabricante: 'Gibson', ano_fabricacao: 1972, antigo_dono: 'Músico de trio elétrico', midias: [],
   },
   {
-    id_item: 4, titulo: 'Saxofone tenor', descricao: null, origem: 'Rio de Janeiro', data_aquisicao: null,
+    id_item: 104, titulo: 'Saxofone tenor', descricao: null, origem: 'Rio de Janeiro', data_aquisicao: null,
     estado_conservacao: 'Bom', tipo_instrumento: 'Sopros', fabricante: 'Selmer', ano_fabricacao: 1959, antigo_dono: null, midias: [],
   },
   {
-    id_item: 5, titulo: 'Cavaquinho', descricao: null, origem: 'Bahia', data_aquisicao: null,
+    id_item: 105, titulo: 'Cavaquinho', descricao: null, origem: 'Bahia', data_aquisicao: null,
     estado_conservacao: 'Restaurado', tipo_instrumento: 'Cordas', fabricante: 'Di Giorgio', ano_fabricacao: 1948, antigo_dono: null, midias: [],
   },
 ];
@@ -350,6 +354,9 @@ export const atividadeItens = [
   { id_atividade: 6, id_item: 1, laudo_saida: null, laudo_retorno: null },
   { id_atividade: 7, id_item: 1, laudo_saida: null, laudo_retorno: null },
   { id_atividade: 8, id_item: 1, laudo_saida: null, laudo_retorno: null },
+  // instrumentos usam ids de item_acervo próprios (101...): o piano aparece em dois eventos
+  { id_atividade: 1, id_item: 101, laudo_saida: null, laudo_retorno: null },
+  { id_atividade: 3, id_item: 101, laudo_saida: null, laudo_retorno: null },
 ];
 
 /**
@@ -358,4 +365,11 @@ export const atividadeItens = [
  */
 export const credenciais: { id_usuario: number; cpf: string; senha: string }[] = [
   { id_usuario: 1, cpf: '52998224725', senha: 'museu123' },
+];
+
+/** Tabela `item_localizacao`: em que sala cada item esteve (data_fim null = está lá agora). */
+export const itemLocalizacoes = [
+  { id_localizacao: 1, id_item: 101, id_sala: 4, data_inicio: '1998-06-01', data_fim: '2020-05-12' },
+  { id_localizacao: 2, id_item: 101, id_sala: 2, data_inicio: '2020-05-12', data_fim: null },
+  { id_localizacao: 3, id_item: 102, id_sala: 1, data_inicio: '2004-09-10', data_fim: null },
 ];

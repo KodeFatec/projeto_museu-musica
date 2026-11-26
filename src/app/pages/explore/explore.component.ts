@@ -8,7 +8,7 @@ import { SearchFieldComponent } from '../../shared/search-field/search-field.com
 
 /**
  * Tela "Descobrir": mostra as coleções do acervo. Clicar numa coleção ou pesquisar leva para a tela de
- * resultados (ainda por criar), passando os critérios pela URL: /descobrir/resultados?decada=1970.
+ * resultados (/descobrir/resultados), passando os critérios pela URL.
  */
 @Component({
   selector: 'app-explore',
@@ -65,7 +65,7 @@ export class ExploreComponent implements OnInit {
     this.openResults(this.explore.forDecade(Number(id)));
   }
 
-  private openResults(query: ExploreQuery): void {
+  protected openResults(query: ExploreQuery): void {
     void this.router.navigate(['/descobrir/resultados'], { queryParams: toQueryParams(query) });
   }
 }
